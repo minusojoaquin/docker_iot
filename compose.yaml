@@ -28,7 +28,7 @@ services:
     container_name: clientemqtt
     environment:
       - TZ=America/Argentina/Buenos_Aires 
-      - SERVIDOR=${SERVIDOR} #Se reemplazará por la env var SERVIDOR defineda en .env
+      - SERVIDOR=${SERVIDOR}
       - TOPICO=${TOPICO}
       - MARIADB_SERVER=${MARIADB_SERVER}
       - MARIADB_USER=${MARIADB_USER}

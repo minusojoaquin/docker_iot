@@ -1,0 +1,116 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+        <div class="mb-4">
+            <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem; letter-spacing: -0.02em;">Ingreso de Motor</h2>
+            <p class="text-secondary small">Paso 1: Identificación o registro del cliente</p>
+        </div>
+
+        <!-- Navigation Tabs -->
+        <div class="nav-tabs-custom d-flex">
+            <button type="button" id="tab-existente" class="nav-link-custom active w-50 text-center" onclick="switchTab('existente')">
+                Cliente Existente
+            </button>
+            <button type="button" id="tab-nuevo" class="nav-link-custom w-50 text-center" onclick="switchTab('nuevo')">
+                Nuevo Cliente
+            </button>
+        </div>
+
+        <div class="card shadow-sm border-0 p-4 bg-white" style="border-radius: 0.75rem;">
+            <form action="{{ url_for('registro_cliente') }}" method="POST" class="needs-validation" novalidate>
+                <!-- DNI is always required -->
+                <div class="mb-3">
+                    <label for="dni" class="form-label">DNI DEL CLIENTE</label>
+                    <input type="number" class="form-control" name="dni" id="dni" placeholder="Ej: 38449122" required min="100000">
+                    <div class="invalid-feedback">Por favor, ingrese un DNI válido.</div>
+                </div>
+
+                <!-- Hidden inputs to identify if client is new or existing -->
+                <input type="hidden" name="es_nuevo" id="es_nuevo" value="false">
+
+                <!-- Conditional New Client Fields -->
+                <div id="new-client-container" style="display: none;">
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="nombre" class="form-label">NOMBRE</label>
+                            <input type="text" class="form-control" name="nombre" id="nombre" placeholder="Nombre">
+                        </div>
+                        <div class="col-6">
+                            <label for="apellido" class="form-label">APELLIDO</label>
+                            <input type="text" class="form-control" name="apellido" id="apellido" placeholder="Apellido">
+                        </div>
+                    </div>
+
+                    <div class="row g-2 mb-3">
+                        <div class="col-6">
+                            <label for="telefono" class="form-label">TELÉFONO</label>
+                            <input type="text" class="form-control" name="telefono" id="telefono" placeholder="+54 9...">
+                        </div>
+                        <div class="col-6">
+                            <label for="email" class="form-label">EMAIL</label>
+                            <input type="email" class="form-control" name="email" id="email" placeholder="correo@ejemplo.com">
+                        </div>
+                    </div>
+
+                </div>
+
+                <div class="d-grid mt-4">
+                    <button type="submit" class="btn btn-primary-orange py-2">
+                        Guardar y Continuar <i class="bi bi-chevron-right ms-1"></i>
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+    function switchTab(mode) {
+        const tabExistente = document.getElementById('tab-existente');
+        const tabNuevo = document.getElementById('tab-nuevo');
+        const newClientContainer = document.getElementById('new-client-container');
+        const esNuevoInput = document.getElementById('es_nuevo');
+        
+        // Form fields
+        const fields = ['nombre', 'apellido', 'telefono'];
+
+        if (mode === 'existente') {
+            tabExistente.classList.add('active');
+            tabNuevo.classList.remove('active');
+            newClientContainer.style.display = 'none';
+            esNuevoInput.value = 'false';
+            
+            // Remove required attribute from new client fields
+            fields.forEach(fieldId => {
+                document.getElementById(fieldId).removeAttribute('required');
+            });
+        } else {
+            tabExistente.classList.remove('active');
+            tabNuevo.classList.add('active');
+            newClientContainer.style.display = 'block';
+            esNuevoInput.value = 'true';
+            
+            // Add required attribute to new client fields
+            fields.forEach(fieldId => {
+                document.getElementById(fieldId).setAttribute('required', 'required');
+            });
+        }
+    }
+
+    // Bootstrap Form Validation Client Side
+    (() => {
+        'use strict'
+        const forms = document.querySelectorAll('.needs-validation')
+        Array.from(forms).forEach(form => {
+            form.addEventListener('submit', event => {
+                if (!form.checkValidity()) {
+                    event.preventDefault()
+                    event.stopPropagation()
+                }
+                form.classList.add('was-validated')
+            }, false)
+        })
+    })()
+</script>
+{% endblock %}

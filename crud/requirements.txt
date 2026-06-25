@@ -3,3 +3,5 @@ flask-mysqldb
 gunicorn
 Werkzeug
 paho-mqtt>=1.6.1
+qrcode
+pillow

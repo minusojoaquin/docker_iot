@@ -1,0 +1,42 @@
+{% extends 'layout.html' %}
+{% block content %}
+</div> <!-- Close layout main container for full-width banner -->
+
+<!-- Header Banner -->
+<div class="w-100 py-4 px-3 text-white mb-4" style="background-color: var(--primary-blue);">
+    <div class="container">
+        <h1 class="fw-bold text-white mb-1" style="font-size: 1.75rem; letter-spacing: -0.02em;">Panel de Operario</h1>
+        <p class="text-white-50 small mb-0">Gestione sus tareas asignadas</p>
+    </div>
+</div>
+
+<div class="container"> <!-- Reopen layout container -->
+    <div class="d-flex flex-column gap-3 mb-5">
+        <!-- Card 1: Mis Tareas -->
+        <a href="{{ url_for('tareas_operario') }}" class="text-decoration-none text-dark d-block">
+            <div class="card-custom d-flex align-items-center">
+                <div class="icon-box-orange me-3">
+                    <i class="bi bi-list-task"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h5 class="fw-bold mb-0" style="font-size: 1.1rem; color: var(--primary-blue);">Mis Tareas</h5>
+                    <p class="text-muted mb-0 small mt-1">Ver y actualizar trabajos asignados por el gerente</p>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 2: Escanear QR -->
+        <a href="{{ url_for('escanear_operario') }}" class="text-decoration-none text-dark d-block">
+            <div class="card-custom d-flex align-items-center">
+                <div class="icon-box-orange me-3">
+                    <i class="bi bi-qr-code-scan"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h5 class="fw-bold mb-0" style="font-size: 1.1rem; color: var(--primary-blue);">Escanear QR</h5>
+                    <p class="text-muted mb-0 small mt-1">Escanear código QR en piezas del taller para ver especificaciones</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
+{% endblock %}

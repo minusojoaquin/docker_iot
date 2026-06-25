@@ -3,19 +3,18 @@
 <div class="row justify-content-center mt-5" style="max-width: 100%;">
     <div class="col-md-12">
         <div class="text-center mb-4">
-            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo RectiTrack" height="140" class="mb-2">
-            <h3 class="fw-bold mt-2">RECTITRACK</h3>
-            <small class="text-muted">Gestión de Motores con Precisión Digital</small>
+            <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo RectiTrack" height="180" class="mb-2">
+            <small class="text-muted d-block">Gestión de Motores con Precisión Digital</small>
         </div>
 
         <div class="card shadow border-0 p-3" style="background-color: #162a45; border-radius: 1rem; color: #ffffff;">
             <div class="card-body">
-                <h4 class="text-center fw-bold mb-1">Iniciar Sesión</h4>
-                <p class="text-center small text-white-50 mb-4">Acceso al sistema RectiTrack</p>
+                <h4 class="text-center fw-bold mb-1 text-white">Iniciar Sesión</h4>
+                <p class="text-center small text-white mb-4">Acceso al sistema RectiTrack</p>
 
                 <form action="{{ url_for('login') }}" method="POST">
                     <div class="mb-3">
-                        <label for="usuario" class="form-label small fw-bold">USUARIO</label>
+                        <label for="usuario" class="form-label small fw-bold text-white">USUARIO</label>
                         <div class="input-group">
                             <span class="input-group-text bg-secondary border-0 text-white"><i
                                     class="bi bi-person"></i></span>
@@ -25,7 +24,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label for="password" class="form-label small fw-bold">CONTRASEÑA</label>
+                        <label for="password" class="form-label small fw-bold text-white">CONTRASEÑA</label>
                         <div class="input-group">
                             <span class="input-group-text bg-secondary border-0 text-white"><i
                                     class="bi bi-lock"></i></span>
@@ -35,7 +34,7 @@
                     </div>
 
                     <div class="mb-4">
-                        <label class="form-label small fw-bold d-block text-white-50">TIPO DE USUARIO</label>
+                        <label class="form-label small fw-bold d-block text-white">TIPO DE USUARIO</label>
                         <div class="btn-group w-100" role="group">
                             <input type="radio" class="btn-check" name="rol" id="rol_gerente" value="gerente" checked>
                             <label class="btn btn-outline-warning border-secondary text-white py-2"
@@ -53,18 +52,38 @@
 
                     <button type="submit" class="btn btn-warning w-100 py-2 fw-bold mb-3"
                         style="border-radius: 0.5rem; color: #162a45;">Ingresar</button>
-                    
-                    <div class="text-center my-3 border-top border-secondary pt-3">
-                        <a href="{{ url_for('registrar') }}" class="text-warning text-decoration-none small fw-bold">¿No posee credenciales? Crear cuenta de Gerente</a>
+
+                    <!-- Recuperar Contraseña for Manager -->
+                    <div class="text-center mt-3" id="recuperar-password-container" style="display: none;">
+                        <a href="#" class="text-warning text-decoration-none small fw-bold">Recuperar Contraseña</a>
                     </div>
                 </form>
-
-                <div class="text-center pt-2 border-top border-secondary">
-                    <small class="text-white-50">Gerente: admin / admin</small><br>
-                    <small class="text-white-50">Operador: se valida en tabla Operario</small>
-                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    document.addEventListener("DOMContentLoaded", function() {
+        const radioGerente = document.getElementById('rol_gerente');
+        const radioOperario = document.getElementById('rol_operario');
+        const radioCliente = document.getElementById('rol_cliente');
+        const recuperarContainer = document.getElementById('recuperar-password-container');
+
+        function toggleRecuperar() {
+            if (radioGerente && radioGerente.checked) {
+                recuperarContainer.style.display = 'block';
+            } else {
+                recuperarContainer.style.display = 'none';
+            }
+        }
+
+        if (radioGerente) radioGerente.addEventListener('change', toggleRecuperar);
+        if (radioOperario) radioOperario.addEventListener('change', toggleRecuperar);
+        if (radioCliente) radioCliente.addEventListener('change', toggleRecuperar);
+
+        // Initial check
+        toggleRecuperar();
+    });
+</script>
 {% endblock %}

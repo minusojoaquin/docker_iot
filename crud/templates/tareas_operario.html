@@ -1,0 +1,98 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-12 col-md-8 col-lg-6">
+        
+        <!-- Header -->
+        <div class="mb-4">
+            <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem; letter-spacing: -0.02em;">Mis Tareas</h2>
+            <p class="text-secondary small">Lista de trabajos de rectificación asignados</p>
+        </div>
+
+        <!-- Filter Pill Navigation -->
+        <div class="d-flex gap-2 overflow-auto pb-3 mb-3" style="scrollbar-width: none;">
+            <button type="button" class="btn btn-sm btn-outline-custom active-pill px-3 py-2 fw-bold text-nowrap" id="filter-all" onclick="filterTasks('ALL')">Todas</button>
+            <button type="button" class="btn btn-sm btn-outline-custom px-3 py-2 fw-bold text-nowrap" id="filter-pendiente" onclick="filterTasks('PENDIENTE')">Pendientes</button>
+            <button type="button" class="btn btn-sm btn-outline-custom px-3 py-2 fw-bold text-nowrap" id="filter-proceso" onclick="filterTasks('EN_PROCESO')">En Proceso</button>
+            <button type="button" class="btn btn-sm btn-outline-custom px-3 py-2 fw-bold text-nowrap" id="filter-finalizado" onclick="filterTasks('FINALIZADA')">Finalizadas</button>
+        </div>
+
+        <!-- Tasks List Container -->
+        <div class="d-flex flex-column gap-3 mb-5" id="tasks-container">
+            {% if not tareas %}
+            <div class="text-center py-5 bg-white border rounded-3 text-muted small">
+                <i class="bi bi-journal-x fs-1 mb-2 d-block text-secondary"></i>
+                No tiene tareas asignadas.
+            </div>
+            {% else %}
+                {% for tarea in tareas %}
+                <!-- Normalizing state from DB (can be HECHO or FINALIZADA) -->
+                {% set status_norm = 'FINALIZADA' if tarea[2] in ['HECHO', 'FINALIZADA'] else tarea[2] %}
+                <div class="card-custom bg-white task-card" data-status="{{ status_norm }}">
+                    <div class="d-flex justify-content-between align-items-start mb-2">
+                        <span class="badge text-secondary small font-monospace bg-light py-1 px-2 border">
+                            Orden #{{ tarea[4] }}
+                        </span>
+                        
+                        <!-- Status Badge -->
+                        <span class="badge px-2 py-1 small" style="background-color: {% if status_norm == 'PENDIENTE' %}var(--alert){% elif status_norm == 'EN_PROCESO' %}var(--primary-orange){% else %}var(--primary-blue){% endif %}; color: white;">
+                            {{ status_norm }}
+                        </span>
+                    </div>
+
+                    <h5 class="fw-bold mb-1" style="color: var(--primary-blue); font-size: 1.15rem;">{{ tarea[5] }} {{ tarea[6] }}</h5>
+                    <p class="text-secondary small mb-3">
+                        <strong>Trabajo:</strong> {{ tarea[1] }}
+                    </p>
+
+                    <div class="d-grid">
+                        <a href="{{ url_for('detalle_tarea_operario', id_tarea=tarea[0]) }}" class="btn btn-outline-custom border-dashed py-2" style="border: 2px dashed var(--primary-orange); color: var(--primary-orange); background: none;">
+                            Ver Detalles <i class="bi bi-chevron-right ms-1"></i>
+                        </a>
+                    </div>
+                </div>
+                {% endfor %}
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+
+<style>
+    /* Styling active state for custom filter pills */
+    .active-pill {
+        background-color: var(--primary-orange) !important;
+        color: white !important;
+        border-color: var(--primary-orange) !important;
+    }
+</style>
+
+<script>
+    function filterTasks(status) {
+        // Update active class on filter buttons
+        const buttons = document.querySelectorAll('[id^="filter-"]');
+        buttons.forEach(btn => btn.classList.remove('active-pill'));
+
+        if (status === 'ALL') {
+            document.getElementById('filter-all').classList.add('active-pill');
+        } else if (status === 'PENDIENTE') {
+            document.getElementById('filter-pendiente').classList.add('active-pill');
+        } else if (status === 'EN_PROCESO') {
+            document.getElementById('filter-proceso').classList.add('active-pill');
+        } else if (status === 'FINALIZADA') {
+            document.getElementById('filter-finalizado').classList.add('active-pill');
+        }
+
+        // Filter task cards
+        const cards = document.querySelectorAll('.task-card');
+        cards.forEach(card => {
+            const cardStatus = card.getAttribute('data-status');
+            if (status === 'ALL' || cardStatus === status || (status === 'FINALIZADA' && (cardStatus === 'HECHO' || cardStatus === 'FINALIZADA'))) {
+                card.style.display = 'block';
+            } else {
+                card.style.display = 'none';
+            }
+        });
+    }
+</script>
+{% endblock %}

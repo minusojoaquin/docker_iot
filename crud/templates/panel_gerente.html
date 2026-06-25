@@ -1,79 +1,81 @@
 {% extends 'layout.html' %}
 {% block content %}
-<div class="mb-4">
-    <h1 class="fw-bold text-dark mb-1" style="font-size: 1.75rem; letter-spacing: -0.02em;">Panel de Gestión</h1>
-    <p class="text-secondary small">Seleccione una opción para gestionar su taller</p>
-</div>
+</div> <!-- Close layout main container for full-width banner -->
 
-<div class="row g-4">
-    <div class="col-12 col-md-6">
-        <a href="{{ url_for('asignar_tareas') }}" class="text-decoration-none text-dark d-block h-100">
-            <div class="card h-100 p-3 card-menu" style="border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 0.625rem; transition: background-color 0.2s; background-color: #ffffff;">
-                <div class="d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center me-3" style="width: 64px; height: 64px; border-radius: 0.50rem; background-color: #ffebe5; color: #ff6b4a; font-size: 2rem; flex-shrink: 0;">
-                        <i class="bi bi-clipboard-check fs-1"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h5 class="fw-bold mb-0 text-dark" style="font-size: 1rem; letter-spacing: -0.01em;">Asignar Tareas</h5>
-                        <p class="text-secondary mb-0 small mt-1">Asignar trabajos a operadores y gestionar asignaciones</p>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <div class="col-12 col-md-6">
-        <a href="{{ url_for('gestionar_stock') }}" class="text-decoration-none text-dark d-block h-100">
-            <div class="card h-100 p-3 card-menu" style="border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 0.625rem; transition: background-color 0.2s; background-color: #ffffff;">
-                <div class="d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center me-3" style="width: 64px; height: 64px; border-radius: 0.50rem; background-color: #ffebe5; color: #ff6b4a; font-size: 2rem; flex-shrink: 0;">
-                        <i class="bi bi-box-seam fs-1"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h5 class="fw-bold mb-0 text-dark" style="font-size: 1rem; letter-spacing: -0.01em;">Gestionar Stock de Repuestos</h5>
-                        <p class="text-secondary mb-0 small mt-1">Control de inventario y alertas de stock crítico</p>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <div class="col-12 col-md-6">
-        <a href="{{ url_for('gestionar_pagos') }}" class="text-decoration-none text-dark d-block h-100">
-            <div class="card h-100 p-3 card-menu" style="border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 0.625rem; transition: background-color 0.2s; background-color: #ffffff;">
-                <div class="d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center me-3" style="width: 64px; height: 64px; border-radius: 0.50rem; background-color: #ffebe5; color: #ff6b4a; font-size: 2rem; flex-shrink: 0;">
-                        <i class="bi bi-currency-dollar fs-1"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h5 class="fw-bold mb-0 text-dark" style="font-size: 1rem; letter-spacing: -0.01em;">Gestionar Pagos Pendientes y Adelantos</h5>
-                        <p class="text-secondary mb-0 small mt-1">Control de pagos, anticipos y saldos</p>
-                    </div>
-                </div>
-            </div>
-        </a>
-    </div>
-
-    <div class="col-12 col-md-6">
-        <a href="{{ url_for('progreso_motores') }}" class="text-decoration-none text-dark d-block h-100">
-            <div class="card h-100 p-3 card-menu" style="border: 1px solid rgba(0, 0, 0, 0.08); border-radius: 0.625rem; transition: background-color 0.2s; background-color: #ffffff;">
-                <div class="d-flex align-items-center">
-                    <div class="d-flex align-items-center justify-content-center me-3" style="width: 64px; height: 64px; border-radius: 0.50rem; background-color: #ffebe5; color: #ff6b4a; font-size: 2rem; flex-shrink: 0;">
-                        <i class="bi bi-activity fs-1"></i>
-                    </div>
-                    <div class="flex-grow-1">
-                        <h5 class="fw-bold mb-0 text-dark" style="font-size: 1rem; letter-spacing: -0.01em;">Ver el Progreso de los Motores</h5>
-                        <p class="text-secondary mb-0 small mt-1">Monitoreo de trabajos, operadores asignados y tiempos</p>
-                    </div>
-                </div>
-            </div>
-        </a>
+<!-- Header Banner -->
+<div class="w-100 py-4 px-3 text-white mb-4" style="background-color: var(--primary-blue);">
+    <div class="container">
+        <h1 class="fw-bold text-white mb-1" style="font-size: 1.75rem; letter-spacing: -0.02em;">Panel de Gestión</h1>
+        <p class="text-white-50 small mb-0">Seleccione una opción para gestionar su taller</p>
     </div>
 </div>
 
-<style>
-    .card-menu:hover {
-        background-color: var(--accent) !important;
-    }
-</style>
+<div class="container"> <!-- Reopen layout container -->
+    <div class="d-flex flex-column gap-3 mb-5">
+        <!-- Card 1: Registrar Ingreso -->
+        <a href="{{ url_for('registro_cliente') }}" class="text-decoration-none text-dark d-block">
+            <div class="card-custom d-flex align-items-center">
+                <div class="icon-box-orange me-3">
+                    <i class="bi bi-person-plus"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h5 class="fw-bold mb-0" style="font-size: 1.1rem; color: var(--primary-blue);">Registrar Ingreso</h5>
+                    <p class="text-muted mb-0 small mt-1">Registrar clientes y dar de alta nuevos motores en el taller</p>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 2: Asignar Tareas -->
+        <a href="{{ url_for('asignar_tareas') }}" class="text-decoration-none text-dark d-block">
+            <div class="card-custom d-flex align-items-center">
+                <div class="icon-box-orange me-3">
+                    <i class="bi bi-clipboard-check"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h5 class="fw-bold mb-0" style="font-size: 1.1rem; color: var(--primary-blue);">Asignar Tareas</h5>
+                    <p class="text-muted mb-0 small mt-1">Asignar trabajos a operadores y gestionar asignaciones de mecanizado</p>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 3: Gestionar Stock de Repuestos -->
+        <a href="{{ url_for('gestionar_stock') }}" class="text-decoration-none text-dark d-block">
+            <div class="card-custom d-flex align-items-center">
+                <div class="icon-box-orange me-3">
+                    <i class="bi bi-box-seam"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h5 class="fw-bold mb-0" style="font-size: 1.1rem; color: var(--primary-blue);">Gestionar Stock de Repuestos</h5>
+                    <p class="text-muted mb-0 small mt-1">Control de inventario y alertas de stock crítico de insumos</p>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 4: Gestionar Pagos Pendientes y Adelantos -->
+        <a href="{{ url_for('gestionar_pagos') }}" class="text-decoration-none text-dark d-block">
+            <div class="card-custom d-flex align-items-center">
+                <div class="icon-box-orange me-3">
+                    <i class="bi bi-currency-dollar"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h5 class="fw-bold mb-0" style="font-size: 1.1rem; color: var(--primary-blue);">Gestionar Pagos y Adelantos</h5>
+                    <p class="text-muted mb-0 small mt-1">Control de pagos, anticipos, saldos pendientes y morosidad</p>
+                </div>
+            </div>
+        </a>
+
+        <!-- Card 5: Ver el Progreso de los Motores -->
+        <a href="{{ url_for('progreso_motores') }}" class="text-decoration-none text-dark d-block">
+            <div class="card-custom d-flex align-items-center">
+                <div class="icon-box-orange me-3">
+                    <i class="bi bi-activity"></i>
+                </div>
+                <div class="flex-grow-1">
+                    <h5 class="fw-bold mb-0" style="font-size: 1.1rem; color: var(--primary-blue);">Ver el Progreso de los Motores</h5>
+                    <p class="text-muted mb-0 small mt-1">Monitoreo de trabajos en tiempo real, operarios y tiempos</p>
+                </div>
+            </div>
+        </a>
+    </div>
+</div>
 {% endblock %}

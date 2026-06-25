@@ -1,0 +1,188 @@
+:root {
+    --primary-blue: #1A365D;
+    --primary-orange: #FF6B00;
+    --light-orange: #FFF3E8;
+    --bg-gray: #F8F9FA;
+    --border-gray: #E9ECEF;
+    --text-dark: #1A365D;
+    --text-muted: #6C757D;
+    --radius: 0.75rem;
+}
+
+body {
+    background-color: var(--bg-gray);
+    color: var(--text-dark);
+    font-family: 'Inter', system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    margin: 0;
+    padding: 0;
+}
+
+/* Typography overrides */
+h1, h2, h3, h4, h5, h6 {
+    color: var(--primary-blue);
+    font-weight: 700;
+}
+
+/* Card Styling */
+.card-custom {
+    background-color: #ffffff;
+    border: 1px solid var(--border-gray);
+    border-radius: var(--radius);
+    padding: 1.25rem;
+    box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.05);
+    transition: transform 0.2s, box-shadow 0.2s;
+}
+
+.card-custom:hover {
+    box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.08);
+}
+
+/* Button overrides */
+.btn-primary-orange {
+    background-color: var(--primary-orange);
+    color: #ffffff;
+    font-weight: 600;
+    border-radius: var(--radius);
+    padding: 0.75rem 1.5rem;
+    border: none;
+    transition: background-color 0.2s;
+}
+
+.btn-primary-orange:hover {
+    background-color: #e05e00;
+    color: #ffffff;
+}
+
+.btn-primary-blue {
+    background-color: var(--primary-blue);
+    color: #ffffff;
+    font-weight: 600;
+    border-radius: var(--radius);
+    padding: 0.75rem 1.5rem;
+    border: none;
+    transition: background-color 0.2s;
+}
+
+.btn-primary-blue:hover {
+    background-color: #122543;
+    color: #ffffff;
+}
+
+.btn-outline-custom {
+    background-color: transparent;
+    color: var(--primary-blue);
+    border: 1px solid var(--border-gray);
+    border-radius: var(--radius);
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    transition: background-color 0.2s;
+}
+
+.btn-outline-custom:hover {
+    background-color: var(--border-gray);
+}
+
+.btn-dashed-custom {
+    background-color: transparent;
+    color: var(--primary-blue);
+    border: 2px dashed var(--border-gray);
+    border-radius: var(--radius);
+    padding: 1rem;
+    font-weight: 600;
+    width: 100%;
+    text-align: center;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.btn-dashed-custom:hover {
+    background-color: #f1f3f5;
+    border-color: var(--primary-blue);
+}
+
+/* Inputs and Forms */
+.form-control, .form-select {
+    border: 1px solid var(--border-gray);
+    border-radius: var(--radius);
+    padding: 0.75rem 1rem;
+    font-size: 0.95rem;
+    color: var(--text-dark);
+}
+
+.form-control:focus, .form-select:focus {
+    border-color: var(--primary-orange);
+    box-shadow: 0 0 0 0.2rem rgba(255, 107, 0, 0.15);
+}
+
+.form-label {
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: var(--text-dark);
+    margin-bottom: 0.5rem;
+}
+
+/* Custom layout elements */
+.icon-box-orange {
+    width: 48px;
+    height: 48px;
+    border-radius: 0.50rem;
+    background-color: var(--light-orange);
+    color: var(--primary-orange);
+    font-size: 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+}
+
+.text-orange {
+    color: var(--primary-orange) !important;
+}
+
+.bg-primary-blue {
+    background-color: var(--primary-blue) !important;
+}
+
+/* Mobile responsive buttons */
+@media (max-width: 576px) {
+    .btn-mobile-full {
+        width: 100% !important;
+        display: block;
+    }
+}
+
+/* Tabs styling */
+.nav-tabs-custom {
+    border-bottom: 2px solid var(--border-gray);
+    margin-bottom: 1.5rem;
+}
+
+.nav-link-custom {
+    color: var(--text-muted);
+    font-weight: 500;
+    padding: 0.75rem 1rem;
+    border: none;
+    background: none;
+    margin-bottom: -2px;
+    transition: color 0.2s;
+}
+
+.nav-link-custom.active {
+    color: var(--primary-orange) !important;
+    font-weight: 700;
+    border-bottom: 3px solid var(--primary-orange);
+}
+
+/* Engine List */
+.engine-card {
+    background-color: #ffffff;
+    border: 1px solid var(--border-gray);
+    border-radius: var(--radius);
+    padding: 1rem 1.25rem;
+    margin-bottom: 0.75rem;
+    transition: background-color 0.2s, border-color 0.2s;
+}
+
+.engine-card.active {
+    background-color: var(--light-orange) !important;
+    border-color: var(--primary-orange) !important;
+}

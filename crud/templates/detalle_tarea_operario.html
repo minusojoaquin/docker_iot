@@ -1,0 +1,97 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-12 col-md-8 col-lg-6">
+        
+        <!-- Header -->
+        <div class="mb-4">
+            <a href="{{ url_for('tareas_operario') }}" class="btn btn-sm btn-outline-secondary mb-3">
+                <i class="bi bi-arrow-left"></i> Volver a Mis Tareas
+            </a>
+            <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem; letter-spacing: -0.02em;">Detalle de Trabajo</h2>
+            <p class="text-secondary small">Visualice y gestione el estado operativo de la tarea</p>
+        </div>
+
+        <!-- Engine Data Block -->
+        <div class="p-3 mb-4 border" style="background-color: #f8f9fa; border-color: var(--border-gray) !important; border-radius: var(--radius);">
+            <span class="d-block text-secondary fw-bold small mb-2" style="letter-spacing: 0.05em;">ESPECIFICACIONES DE LA PIEZA</span>
+            
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">ID Motor</span>
+                <strong class="text-dark font-monospace">#{{ tarea[11] }}</strong>
+            </div>
+            
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">Cliente</span>
+                <strong class="text-dark">{{ tarea[9] }} {{ tarea[10] }}</strong>
+            </div>
+
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">Motor / Tipo</span>
+                <strong class="text-dark">{{ tarea[5] }} {{ tarea[6] }}</strong>
+            </div>
+
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">Área de Trabajo</span>
+                <strong class="text-dark">{{ tarea[8] }}</strong>
+            </div>
+
+            <div class="text-start" style="font-size: 0.9rem;">
+                <span class="text-secondary d-block mb-1">Tarea Asignada</span>
+                <div class="p-2 border bg-white small" style="border-radius: 0.35rem; color: var(--primary-blue);">
+                    {{ tarea[1] }}
+                </div>
+            </div>
+        </div>
+
+        <!-- State Status Info -->
+        <div class="mb-4 text-center">
+            <span class="small text-secondary font-monospace">ESTADO ACTUAL:</span>
+            <span class="badge px-3 py-2 ms-2 fs-6" style="background-color: {% if tarea[2] == 'PENDIENTE' %}var(--alert){% elif tarea[2] == 'EN_PROCESO' %}var(--primary-orange){% else %}var(--primary-blue){% endif %}; color: white; border-radius: 20px;">
+                {{ tarea[2] }}
+            </span>
+        </div>
+
+        <!-- Sticky/Fixed Footer controls placeholder -->
+        <div class="mt-5 pt-3">
+            {% if tarea[2] == 'PENDIENTE' %}
+                <!-- State 1: Iniciar Trabajo -->
+                <div class="d-grid">
+                    <form action="{{ url_for('detalle_tarea_operario', id_tarea=tarea[0]) }}" method="POST" class="w-100">
+                        <input type="hidden" name="estado" value="EN_PROCESO">
+                        <button type="submit" class="btn btn-primary-orange py-3 w-100 fw-bold">
+                            <i class="bi bi-play-fill me-1"></i> Iniciar Trabajo
+                        </button>
+                    </form>
+                </div>
+            {% elif tarea[2] == 'EN_PROCESO' %}
+                <!-- State 2: Pausar / Finalizar Tarea -->
+                <div class="row g-2">
+                    <div class="col-6">
+                        <form action="{{ url_for('detalle_tarea_operario', id_tarea=tarea[0]) }}" method="POST">
+                            <input type="hidden" name="estado" value="PENDIENTE">
+                            <button type="submit" class="btn btn-outline-custom w-100 py-3">
+                                <i class="bi bi-pause-fill me-1"></i> Pausar
+                            </button>
+                        </form>
+                    </div>
+                    <div class="col-6">
+                        <form action="{{ url_for('detalle_tarea_operario', id_tarea=tarea[0]) }}" method="POST">
+                            <input type="hidden" name="estado" value="FINALIZADA">
+                            <button type="submit" class="btn btn-primary-blue w-100 py-3 fw-bold" style="background-color: var(--primary-blue);">
+                                <i class="bi bi-check-lg me-1"></i> Finalizar Tarea
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            {% else %}
+                <!-- Completed State -->
+                <div class="alert alert-success text-center py-3 fw-bold border-0 shadow-sm" style="border-radius: var(--radius); background-color: #d1e7dd; color: #0f5132;">
+                    <i class="bi bi-check-circle-fill me-2 fs-5"></i> Trabajo Finalizado con Éxito
+                </div>
+            {% endif %}
+        </div>
+
+    </div>
+</div>
+{% endblock %}

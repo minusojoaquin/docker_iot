@@ -1,0 +1,64 @@
+<!-- Modal QR Code -->
+<div class="modal fade" id="qrModal" tabindex="-1" aria-labelledby="qrModalLabel" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered">
+        <div class="modal-content" style="border-radius: 0.75rem; border: none; overflow: hidden;">
+            <!-- Header -->
+            <div class="modal-header text-white border-0" style="background-color: var(--primary-blue);">
+                <div class="d-flex align-items-center gap-2">
+                    <i class="bi bi-qr-code text-orange fs-4"></i>
+                    <h5 class="modal-title fw-bold" id="qrModalLabel">Código QR del Motor</h5>
+                </div>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            
+            <!-- Body -->
+            <div class="modal-body text-center p-4">
+                <div class="p-3 bg-white border d-inline-block mb-4" style="border-radius: 0.5rem; border-color: var(--border-gray) !important;">
+                    <img src="data:image/png;base64,{{ qr_code_base64 }}" alt="Código QR" style="max-width: 180px; height: auto;">
+                </div>
+
+                <div class="text-start">
+                    <span class="d-block text-secondary fw-bold small mb-2" style="letter-spacing: 0.05em;">DATOS CODIFICADOS</span>
+                    <div class="p-3 bg-light" style="border-radius: 0.5rem;">
+                        <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.05) !important;">
+                            <span class="text-secondary">ID Motor</span>
+                            <strong class="text-dark font-monospace">{{ codigo_qr_text }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.05) !important;">
+                            <span class="text-secondary">Cliente</span>
+                            <strong class="text-dark">{{ qr_cliente_nombre }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.05) !important;">
+                            <span class="text-secondary">Motor</span>
+                            <strong class="text-dark">{{ qr_motor_marca_modelo }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.05) !important;">
+                            <span class="text-secondary">Trabajo</span>
+                            <strong class="text-dark">{{ qr_tipo_trabajo }}</strong>
+                        </div>
+                        <div class="d-flex justify-content-between" style="font-size: 0.85rem;">
+                            <span class="text-secondary">Fecha</span>
+                            <strong class="text-dark">{{ qr_fecha }}</strong>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Footer -->
+            <div class="modal-footer border-0 p-3 bg-light">
+                <div class="row g-2 w-100">
+                    <div class="col-6">
+                        <a href="data:image/png;base64,{{ qr_code_base64 }}" download="qr_{{ codigo_qr_text }}.png" class="btn btn-outline-custom w-100 py-2">
+                            Descargar QR
+                        </a>
+                    </div>
+                    <div class="col-6">
+                        <button type="button" class="btn btn-primary-orange w-100 py-2" data-bs-dismiss="modal">
+                            Confirmar Motor
+                        </button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>

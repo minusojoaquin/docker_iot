@@ -1,72 +1,60 @@
 # Contexto del Proyecto: RECTITRACK
 
 ## 1. Propósito del Sistema
-RectiTrack es un sistema de software a medida diseñado bajo una arquitectura web para transformar la gestión operativa informal de un taller de rectificación de motores en un entorno digital centralizado[cite: 1]. El objetivo principal es eliminar la pérdida de información y la dependencia de órdenes verbales o cuadernos manuales, garantizando la trazabilidad en tiempo real de cada pieza o motor que ingresa al taller[cite: 1, 2].
+Sistema de software web diseñado para la gestión operativa y digitalización centralizada de un taller de rectificación de motores. Elimina la pérdida de información, automatiza notificaciones, gestiona el flujo de trabajo financiero y técnico, y garantiza la trazabilidad en tiempo real mediante identificadores físicos (QR).
 
 ## 2. Restricciones de Infraestructura y Despliegue
-*   **Entorno:** Servidor VPS ejecutando Docker y Docker Compose.
-*   **Restricción de Red:** Disponibilidad de **un único puerto público expuesto (`10213`)** en el host debido a limitaciones de IP estática.
-*   **Enrutamiento:** SWAG (Nginx de LinuxServer) actúa como Proxy Inverso seguro en el puerto `10213`. Todas las subrutas de la aplicación web se despachan internamente a través de este puerto mediante directivas de proxy de Nginx de tipo *strip-prefix*.
-*   **Componentes Activos en `compose.yaml`:**
-    *   `mariadb`: Motor de base de datos relacional (Base de datos física: `rectitrack_db`).
-    *   `phpmyadmin`: Administrador gráfico de datos accesible internamente.
-    *   `swag`: Capa de seguridad HTTPS y enrutador proxy inverso.
-    *   `crud`: Backend de la aplicación desarrollado en Python / Flask.
+* **Entorno:** Servidor VPS con orquestación Docker y Docker Compose.
+* **Restricción de Red:** Exposición estricta de un único puerto público (`10213`) en el host.
+* **Enrutamiento:** SWAG (Nginx LinuxServer) operando como Proxy Inverso seguro (`10213`). Despacho interno mediante proxy inverso *strip-prefix*.
+* **Topología `compose.yaml`:**
+  * `mariadb`: Motor relacional (`rectitrack_db`).
+  * `phpmyadmin`: Interfaz de administración de datos aislada.
+  * `swag`: Capa de seguridad HTTPS y enrutamiento.
+  * `crud`: Aplicación core (Python / Flask / Bootstrap 5).
 
 ## 3. Modelo de Datos Relacional (`rectitrack_db`)
-El esquema de persistencia física en MariaDB está compuesto por las siguientes entidades críticas conectadas:
-*   `Cliente`: Almacena información de contacto y credenciales de usuarios externos[cite: 2, 3].
-*   `Motor`: Identificado unívocamente mediante un código QR (`codigo_qr`) generado al ingresar la pieza al taller[cite: 2, 3].
-*   `OrdenTrabajo`: Controla las fechas de ingreso, montos totales, saldos adeudados y el estado general del motor en el flujo del taller[cite: 2, 3].
-*   `Pago_Orden`: Registra anticipos y pagos parciales financieros asociados a una orden[cite: 2, 3].
-*   `Area`: Divisiones físicas del taller de mecanizado (`Cilindros`, `Cigüeñal`, `Bujes`, `Plano`)[cite: 1].
-*   `Operario`: Personal técnico encargado de ejecutar las tareas de rectificación[cite: 1, 2, 3].
-*   `Tarea`: Registro cronológico e inmutable de las operaciones técnicas asignadas por el gerente, que incluye campos específicos para observaciones y mediciones de mecanizado[cite: 1, 2, 3].
+* **Cliente:** Entidad de contacto. Credenciales autogeneradas (Usuario: apellido, Contraseña: DNI).
+* **Motor:** Identificado criptográficamente por `codigo_qr`. Incluye columna `estado` (`PENDIENTE`, `EN_PROCESO`, `TERMINADO`) para exclusión lógica en vistas. **Prohibida la eliminación física (`DELETE`).**
+* **OrdenTrabajo:** Control de fechas, montos totales, saldos y estado global del motor.
+* **Pago_Orden:** Registro de transacciones parciales (`anticipos`).
+* **Area:** Divisiones operativas (`Cilindros`, `Cigüeñal`, `Bujes`, `Plano`).
+* **Operario:** Ejecutor técnico de tareas.
+* **Tarea:** Registro transaccional inmutable de operaciones, mediciones, observaciones y prioridad.
+* **Notificaciones:** Registro de alertas críticas (pausas por repuestos, inactividad prolongada).
 
 ## 4. Roles y Casos de Uso del Sistema
-El sistema segmenta estrictamente el acceso y las interfaces en función de tres roles de usuario diferenciados[cite: 1, 2]:
-
-### A. Rol Gerente (Foco de Implementación Actual)
-*   **CU1 / RF03:** Monitorear la transición y el estado de avance de los motores por el taller para identificar cuellos de botella[cite: 2, 3].
-*   **CU2 / RF05:** Asignar formalmente nuevas tareas técnicas a operarios y áreas específicas, destruyendo la dependencia de órdenes verbales[cite: 2, 3].
-*   **CU3 / RF01:** Registrar el ingreso físico de motores y generar su correspondiente identificador QR único[cite: 2, 3].
-*   **CU5 / RF07:** Supervisar el tablero financiero de cobros, anticipos, saldos pendientes y control de la morosidad[cite: 1, 2, 3].
-
-### B. Rol Operario (Personal Técnico)
-*   **CU8 / RF10:** Visualizar la lista de tareas asignadas pendientes y activas ordenadas por prioridad desde dispositivos móviles[cite: 1, 2, 3].
-*   **CU9 / RF08:** Escanear códigos QR físicos fijados en las piezas para acceder inmediatamente a las especificaciones técnicas[cite: 1, 2, 3].
-*   **CU12 / RF09 / RF11:** Registrar avances técnicos, cargar mediciones precisas del mecanizado y pausar flujos operativos ante la falta de repuestos, emitiendo alertas automáticas al gerente[cite: 1, 2, 3].
-
-### C. Rol Cliente (Usuario de Consulta Externa)
-*   **CU13 / CU14 / RF12:** Consultar el porcentaje de avance general de su motor y la fecha estimada de entrega ingresando su identificador sin requerir asistencia telefónica del personal[cite: 1, 2, 3].
-*   **CU15 / CU16 / RF13 / RF15:** Visualizar estados de cuenta corporativos y saldos adeudados con opción de pago virtual integrado[cite: 2, 3].
+* **Rol Gerente (Administrador):**
+  * Asignación de tareas y monitoreo de cuellos de botella.
+  * Registro de motores y generación de QR.
+  * Gestión de cobros, anticipos y saldos deudores.
+  * Acceso exclusivo a recuperación de contraseña desde UI.
+* **Rol Operario (Técnico):**
+  * Resolución de QR para acceso a ficha técnica.
+  * Ejecución de tareas ordenadas por prioridad.
+  * Transición de estados de tarea (Inicio, Pausa, Finalización).
+* **Rol Cliente (Solo Lectura):**
+  * Consulta de estado de avance de motor.
+  * Visualización de saldos adeudados y notificaciones.
 
 ## 5. Estado Actual del Desarrollo
-*   **Backend (`crud.py`):** Configurado con Flask y `flask_mysqldb`. Actualmente cuenta con un bypass de login automático para forzar la sesión en rol `gerente` con el fin de agilizar las pruebas y optimización visual.
-*   **Rutas del Servidor Flask en Producción:**
-    *   `/panel-gerente`: Renderiza el panel principal de opciones del administrador.
-    *   `/panel-gerente/asignar`: Procesa la lógica DML de inserción de nuevas tareas técnicas en la base de datos y recupera listas relacionales de áreas, operarios y motores.
-    *   `/panel-gerente/stock`: Muestra el estado crítico de insumos e inventario del taller[cite: 3].
-    *   `/panel-gerente/pagos`: Calcula de manera dinámica los adelantos y saldos deudores cruzando datos de las tablas `OrdenTrabajo`, `Pago_Orden`, `Motor` y `Cliente`.
-    *   `/panel-gerente/progreso`: Genera las barras de progreso del taller computando el estado del flujo de mecanizado.
-*   **Plantillas Activas (`templates/`):** Estructura adaptada al diseño corporativo de Figma con hojas de estilo responsive basadas en Bootstrap. Archivos: `layout.html`, `panel_gerente.html`, `asignar_tareas.html`, `gestionar_stock.html`, `gestionar_pagos.html`, `progreso_motores.html`, `panel_operario.html`, `tareas_operario.html`, `detalle_tarea_operario.html`, `escanear_operario.html`, `ficha_tecnica_motor.html`, `panel_cliente.html`.
+* **Backend (`crud.py` / Flask):** Integración de SQLAlchemy/MySQLdb. Despacho SMTP seguro implementado.
+* **Rutas Críticas Activas:**
+  * `/login`: Control de acceso Role-Based (Gerente, Operario, Cliente). UI optimizada (alta legibilidad, sin credenciales expuestas, sin navegación redundante).
+  * `/panel-gerente`: Interfaz principal 2x2.
+  * `/panel-gerente/asignar`: Lógica DML para inyección de tareas.
+  * `/panel-gerente/pagos`: Tablero financiero. Recálculo dinámico de `saldo` vía POST modal (`/registrar_anticipo/<id>`).
+  * `/panel-gerente/registro-motor`: Flujo de ingreso. Autogeneración de credenciales y despacho de email asíncrono SMTP post-commit.
+  * `/scan/<codigo_qr>`: Endpoint de resolución técnica para operarios.
 
-## 6. Gap Analysis & Sprint Implementations
-Durante este sprint, se implementaron las siguientes características y resoluciones de Requisitos Funcionales (RF):
+## 6. Resoluciones Estructurales (Sprint Actual)
+* **Refactorización UI/UX (Mobile-First):** Escalado de logotipos, inyección de grillas 2x2 en paneles, corrección de contraste en formularios (texto blanco en fondos oscuros). Supresión de botones de retroceso y logotipos redundantes en `/login`.
+* **Transmisión SMTP (Gateways):** Implementación de `smtplib` con TLS puerto 587. Uso obligatorio de App Passwords (2FA) para Google Workspace/Gmail. Bloques `try/except` con feedback asíncrono (Flask flash).
+* **Máquina de Estados y Exclusión Lógica:** Intercepción de la finalización de tareas del operario. Confirmación UI para última tarea. Ejecución de `UPDATE Motor SET estado = 'TERMINADO'`. Modificación de consultas SQL (`WHERE estado != 'TERMINADO'`) para purgar colas operativas preservando el historial financiero.
+* **Gestión Financiera:** Implementación de modales de anticipo con validación de tipo de dato numérico (`step="0.01"`). Implementación de endpoint `/registrar_anticipo/<int:motor_id>`.
 
-### Cambios en Base de Datos
-- **`Tarea`**: Añadida columna `prioridad ENUM('Alta', 'Media', 'Baja') DEFAULT 'Media'` y restricción `DEFAULT 'PENDIENTE'` en `estado_tarea`. Añadido soporte para "PAUSADA" (RF05, RF10).
-- **`OrdenTrabajo`**: Añadida columna `fecha_terminado` (RF03, RF06).
-- **`Notificaciones`**: Nueva tabla para alertas de sistema críticas y pausas de operario (RF03, RF06, RF11).
-
-### Nuevos Endpoints / Lógica
-- **Gerencia**: 
-  - Agregado `/api/status/gerente` y notificaciones en dashboard para motores inactivos > 30 días y tareas pausadas (RF03, RF06, RF16). Actualizado cálculo de saldo deudor utilizando `Pago_Orden` (RF07).
-  - Integrado despacho SMTP asíncrono y resiliente en `/panel-gerente/registro-motor` (ejecutado tras COMMIT exitoso) con bloque `try/except` que provee feedback visual (flash alerts) sobre el envío exitoso o fallido del correo con las credenciales y el enlace al portal de seguimiento.
-- **Operario**: Endpoint `/scan/<codigo_qr>` que resuelve la `ficha_tecnica_motor.html` (RF08). Soporte para campo de observaciones en tareas y estado `PAUSADA` que reporta a Gerencia (RF09, RF11). Agregado `/api/status/operario` (RF16).
-- **Cliente**: `panel_cliente.html` reconstruido. Stub para alertas de WhatsApp (`send_whatsapp_alert`) al finalizar orden (RF14). Endpoint de pago stub (`/api/pagar/<id_orden>`) (RF15). Renderización de saldos en tiempo real (RF12, RF13).
-
-## 7. Instrucciones para el Agente de IA
-1.  **Preservación de Estructuras:** Al modificar el código en `crud.py`, bajo ningún concepto elimines la lógica de conexión a las tablas relacionales existentes en `rectitrack_db` ni las funciones del decorador de sesión del Gerente.
-2.  **Fidelidad de Diseño:** Cualquier cambio en los componentes visuales de la carpeta `templates/` debe respetar estrictamente la paleta de colores de RectiTrack (`#0b2545` para azul principal, botones en naranja `#f3722c`) e interfaces limpias adaptadas a entornos móviles y de taller mecánico[cite: 3].
-3.  **Aislamiento de Puertos:** No intentes mapear puertos adicionales expuestos al VPS de forma directa. Todo tráfico HTTP/HTTPS entrante debe ser canalizado exclusivamente a través del puerto configurado en SWAG (`10213`) mapeando subrutas de Nginx.
+## 7. Directivas Absolutas para Agentes de IA
+* **Integridad de Datos:** Bajo ningún concepto ejecutar sentencias `DROP` o `DELETE` sobre registros operativos (Motores, Clientes, Tareas). Utilizar estrictamente mutaciones de estado (`UPDATE`) para exclusión lógica.
+* **Preservación de Autenticación:** No alterar la lógica de encriptación de contraseñas ni la generación automática de credenciales de cliente (Apellido/DNI).
+* **Fidelidad UI:** Mantener estricto cumplimiento de la paleta (`#1A365D`, `#FF6B00`, `#FFF3E8`). Requerir el uso de Bootstrap 5 y variables Jinja2 para componentes dinámicos.
+* **Gestión de Entorno:** Credenciales SMTP, tokens y variables de entorno deben permanecer fuera del código fuente, referenciadas vía `os.environ` o `.env`.

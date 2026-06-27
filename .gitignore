@@ -132,6 +132,7 @@ dmypy.json
 .pyre/
 
 .env
+.md
 
 #swag related files: ignore all except NGINX conf
 grafana/

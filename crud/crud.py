@@ -311,27 +311,28 @@ def registro_cliente():
                 # SMTP Integration: Dispatch email
                 if email:
                     try:
-                        smtp_server = os.environ.get("SMTP_SERVER", "localhost")
-                        smtp_port = int(os.environ.get("SMTP_PORT", 1025))
-                        smtp_user = os.environ.get("SMTP_USER", "")
-                        smtp_pass = os.environ.get("SMTP_PASSWORD", "")
+                        smtp_server = 'smtp.gmail.com'
+                        smtp_port = 587
+                        smtp_user = os.environ.get("MAIL_USERNAME")
+                        smtp_pass = os.environ.get("MAIL_PASSWORD")
                         
                         msg = MIMEText(f"Bienvenido a RectiTrack.\n\nSus credenciales de acceso son:\nUsuario: {login_usr}\nContraseña: {password_usr}")
                         msg['Subject'] = 'Credenciales de acceso RectiTrack'
-                        msg['From'] = 'no-reply@rectitrack.com'
+                        msg['From'] = smtp_user
                         msg['To'] = email
                         
-                        server = smtplib.SMTP(smtp_server, smtp_port, timeout=5)
-                        if smtp_user and smtp_pass:
-                            server.starttls()
-                            server.login(smtp_user, smtp_pass)
+                        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+                        server.starttls()
+                        server.login(smtp_user, smtp_pass)
                         server.send_message(msg)
                         server.quit()
                         logging.info(f"Email de credenciales enviado con éxito a {email}")
-                        flash("Se ha enviado un correo con las credenciales de acceso.")
+                        flash("Se ha enviado un correo con las credenciales de acceso.", "success")
                     except Exception as smtp_err:
+                        import traceback
+                        traceback.print_exc()
                         logging.error(f"Error al enviar email de credenciales: {smtp_err}")
-                        flash("El cliente fue registrado, pero ocurrió un error al enviar el correo con las credenciales.")
+                        flash("Cliente guardado, pero falló el envío de correo.", "danger")
             except Exception as e:
                 mysql.connection.rollback()
                 logging.error(f"Error registering new client: {e}")
@@ -573,6 +574,7 @@ def asignar_tareas():
         SELECT ot.id_orden, m.codigo_qr, m.marca, m.modelo 
         FROM OrdenTrabajo ot 
         JOIN Motor m ON ot.id_motor = m.id_motor
+        WHERE m.estado != 'TERMINADO'
     """)
     ordenes = cur.fetchall()
     cur.close()
@@ -616,6 +618,7 @@ def progreso_motores():
         JOIN Motor m ON ot.id_motor = m.id_motor
         LEFT JOIN Tarea t ON ot.id_orden = t.id_orden
         LEFT JOIN Operario o ON t.id_operario = o.id_operario
+        WHERE m.estado != 'TERMINADO'
         GROUP BY ot.id_orden
     """)
     progresos = cur.fetchall()
@@ -669,7 +672,7 @@ def tareas_operario():
         JOIN OrdenTrabajo ot ON t.id_orden = ot.id_orden
         JOIN Motor m ON ot.id_motor = m.id_motor
         JOIN Area a ON t.id_area = a.id_area
-        WHERE t.id_operario = %s
+        WHERE t.id_operario = %s AND m.estado != 'TERMINADO'
         ORDER BY FIELD(t.prioridad, 'Alta', 'Media', 'Baja'), t.fecha_actualizacion DESC
     """, (session.get("operario_id"),))
     tareas = cur.fetchall()
@@ -684,6 +687,7 @@ def detalle_tarea_operario(id_tarea):
     if request.method == 'POST':
         nuevo_estado = request.form.get('estado')
         observaciones = request.form.get('observaciones', '')
+        is_final_task = request.form.get('is_final_task') == 'true'
         if nuevo_estado in ['PENDIENTE', 'EN_PROCESO', 'HECHO', 'FINALIZADA', 'PAUSADA']:
             try:
                 cur.execute("""
@@ -720,6 +724,9 @@ def detalle_tarea_operario(id_tarea):
                             INSERT INTO Notificaciones (mensaje, tipo, id_orden, id_tarea) 
                             VALUES (%s, 'ALERTA', %s, %s)
                         """, (f"Tarea {id_tarea} pausada por operario. Obs: {observaciones}", id_orden, id_tarea))
+                
+                if is_final_task and nuevo_estado in ['HECHO', 'FINALIZADA']:
+                    cur.execute("UPDATE Motor SET estado = 'TERMINADO' WHERE id_motor = (SELECT id_motor FROM OrdenTrabajo WHERE id_orden = %s)", (id_orden,))
                 
                 mysql.connection.commit()
                 flash("Estado de la tarea y observaciones actualizados.")

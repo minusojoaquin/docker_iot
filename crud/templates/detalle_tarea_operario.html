@@ -61,6 +61,8 @@
                     <label for="observaciones" class="form-label text-secondary small fw-bold" style="letter-spacing: 0.05em;">OBSERVACIONES TÉCNICAS</label>
                     <textarea class="form-control border-0 shadow-sm" id="observaciones" name="observaciones" rows="3" placeholder="Indique novedades técnicas, problemas, o justificación de pausa..." style="border-radius: 0.625rem; background-color: #f8f9fa;">{{ tarea[12] if tarea[12] else '' }}</textarea>
                 </div>
+                
+                <input type="hidden" name="is_final_task" id="is_final_task" value="false">
 
                 {% if tarea[2] == 'PENDIENTE' or tarea[2] == 'PAUSADA' %}
                     <!-- State 1: Iniciar Trabajo -->
@@ -78,7 +80,7 @@
                             </button>
                         </div>
                         <div class="col-6">
-                            <button type="submit" name="estado" value="FINALIZADA" class="btn btn-primary-blue w-100 py-3 fw-bold shadow-sm" style="background-color: var(--primary-blue); border-radius: 0.625rem;">
+                            <button type="submit" name="estado" value="FINALIZADA" class="btn btn-primary-blue w-100 py-3 fw-bold shadow-sm" style="background-color: var(--primary-blue); border-radius: 0.625rem;" onclick="return confirmarFinalizacion(event)">
                                 <i class="bi bi-check-lg me-1 fs-5"></i> Finalizar Tarea
                             </button>
                         </div>
@@ -94,4 +96,12 @@
 
     </div>
 </div>
+
+<script>
+function confirmarFinalizacion(e) {
+    let isFinal = window.confirm("¿Es esta la última tarea a realizar en el motor?");
+    document.getElementById('is_final_task').value = isFinal ? 'true' : 'false';
+    return true;
+}
+</script>
 {% endblock %}

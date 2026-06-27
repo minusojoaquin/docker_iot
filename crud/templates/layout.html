@@ -14,6 +14,7 @@
     <nav class="navbar navbar-expand bg-white py-2" style="border-bottom: 1px solid var(--border-gray);">
         <div class="container d-flex justify-content-between align-items-center">
             <div class="d-flex align-items-center gap-2">
+                {% if request.endpoint != 'login' %}
                 {% if request.path not in [url_for('panel_gerente'), url_for('panel_operario'), url_for('panel_cliente'), url_for('login'), '/crud/panel-gerente', '/crud/panel-operario', '/crud/panel-cliente', '/crud/login', '/crud/'] %}
                 <a href="javascript:history.back()" class="text-dark me-2" aria-label="Volver">
                     <i class="bi bi-arrow-left fs-4"></i>
@@ -22,6 +23,7 @@
                 <a href="{{ url_for('index') }}" class="d-inline-block">
                     <img src="{{ url_for('static', filename='img/logo.png') }}" alt="Logo RectiTrack" height="30">
                 </a>
+                {% endif %}
             </div>
             {% if session.get('role') %}
             <div class="d-flex align-items-center gap-2">
@@ -34,10 +36,20 @@
         </div>
     </nav>
     <div class="container mt-4">
-        {% with messages = get_flashed_messages() %}
+        {% with messages = get_flashed_messages(with_categories=true) %}
         {% if messages %}
-        {% for message in messages %}
-        <div class="alert alert-custom alert-dismissible fade show small" role="alert">
+        {% for category, message in messages %}
+        {% set alert_class = 'alert-custom' %}
+        {% if category == 'success' %}
+            {% set alert_class = 'alert-success text-success bg-light border-success-subtle' %}
+        {% elif category == 'error' or category == 'danger' %}
+            {% set alert_class = 'alert-danger text-danger bg-light border-danger-subtle' %}
+        {% elif category == 'warning' %}
+            {% set alert_class = 'alert-warning text-warning bg-light border-warning-subtle' %}
+        {% elif category == 'info' %}
+            {% set alert_class = 'alert-info text-info bg-light border-info-subtle' %}
+        {% endif %}
+        <div class="alert {{ alert_class }} alert-dismissible fade show small" role="alert">
             {{ message }}
             <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" style="font-size: 0.75rem;"></button>
         </div>

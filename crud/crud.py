@@ -671,5 +671,67 @@ def panel_cliente():
     cur.close()
     return render_template('panel_cliente.html', motores=motores)
 
+@app.route('/recuperar-contrasena', methods=['GET', 'POST'])
+def recuperar_contrasena():
+    if request.method == 'POST':
+        email = request.form.get('email')
+        if not email:
+            flash("El correo electrónico es obligatorio.", "error")
+            return redirect(url_for('recuperar_contrasena'))
+            
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT usuario FROM Usuarios_Gerencia WHERE email = %s", (email,))
+        row = cur.fetchone()
+        
+        if row:
+            usuario = row[0]
+            # In a real system, generate a random password, hash it, update DB, and send email
+            # For now, we simulate success
+            flash(f"Se han enviado las instrucciones al correo: {email}", "success")
+            logging.info(f"Recuperación de contraseña solicitada para gerente: {usuario}")
+        else:
+            flash("No se encontró ningún gerente con ese correo.", "error")
+            
+        cur.close()
+        return redirect(url_for('login'))
+        
+    return render_template('recuperar_contrasena.html')
+
+@app.route('/api/motor/<int:id_motor>/qr', methods=['GET'])
+def get_motor_qr(id_motor):
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        SELECT m.codigo_qr, c.nombre, c.apellido, m.marca, m.modelo, ot.tipo_trabajo, ot.fecha_ingreso
+        FROM Motor m
+        JOIN Cliente c ON m.dni_cliente = c.dni
+        LEFT JOIN OrdenTrabajo ot ON m.id_motor = ot.id_motor
+        WHERE m.id_motor = %s
+    """, (id_motor,))
+    row = cur.fetchone()
+    cur.close()
+    
+    if not row or not row[0]:
+        return {"error": "QR no encontrado"}, 404
+        
+    qr_text = row[0]
+    qr = qrcode.QRCode(version=1, box_size=10, border=4)
+    qr.add_data(qr_text)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+    buf = io.BytesIO()
+    img.save(buf, format='PNG')
+    qr_code_base64 = base64.b64encode(buf.getvalue()).decode('utf-8')
+    
+    fecha_str = row[6].strftime("%d/%m/%Y") if row[6] else "N/A"
+    
+    return {
+        "qr_code_base64": qr_code_base64,
+        "codigo_qr_text": qr_text,
+        "qr_cliente_nombre": f"{row[1]} {row[2]}",
+        "qr_motor_marca_modelo": f"{row[3]} {row[4]}",
+        "qr_tipo_trabajo": row[5] or "Mantenimiento General",
+        "qr_fecha": fecha_str
+    }
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

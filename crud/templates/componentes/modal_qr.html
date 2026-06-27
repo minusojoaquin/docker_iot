@@ -14,7 +14,7 @@
             <!-- Body -->
             <div class="modal-body text-center p-4">
                 <div class="p-3 bg-white border d-inline-block mb-4" style="border-radius: 0.5rem; border-color: var(--border-gray) !important;">
-                    <img src="data:image/png;base64,{{ qr_code_base64 }}" alt="Código QR" style="max-width: 180px; height: auto;">
+                    <img id="modalQrImage" src="data:image/png;base64,{{ qr_code_base64 }}" alt="Código QR" style="max-width: 180px; height: auto;">
                 </div>
 
                 <div class="text-start">
@@ -22,23 +22,23 @@
                     <div class="p-3 bg-light" style="border-radius: 0.5rem;">
                         <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.05) !important;">
                             <span class="text-secondary">ID Motor</span>
-                            <strong class="text-dark font-monospace">{{ codigo_qr_text }}</strong>
+                            <strong id="modalQrIdMotor" class="text-dark font-monospace">{{ codigo_qr_text }}</strong>
                         </div>
                         <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.05) !important;">
                             <span class="text-secondary">Cliente</span>
-                            <strong class="text-dark">{{ qr_cliente_nombre }}</strong>
+                            <strong id="modalQrCliente" class="text-dark">{{ qr_cliente_nombre }}</strong>
                         </div>
                         <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.05) !important;">
                             <span class="text-secondary">Motor</span>
-                            <strong class="text-dark">{{ qr_motor_marca_modelo }}</strong>
+                            <strong id="modalQrMotor" class="text-dark">{{ qr_motor_marca_modelo }}</strong>
                         </div>
                         <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.85rem; border-color: rgba(0,0,0,0.05) !important;">
                             <span class="text-secondary">Trabajo</span>
-                            <strong class="text-dark">{{ qr_tipo_trabajo }}</strong>
+                            <strong id="modalQrTrabajo" class="text-dark">{{ qr_tipo_trabajo }}</strong>
                         </div>
                         <div class="d-flex justify-content-between" style="font-size: 0.85rem;">
                             <span class="text-secondary">Fecha</span>
-                            <strong class="text-dark">{{ qr_fecha }}</strong>
+                            <strong id="modalQrFecha" class="text-dark">{{ qr_fecha }}</strong>
                         </div>
                     </div>
                 </div>
@@ -48,7 +48,7 @@
             <div class="modal-footer border-0 p-3 bg-light">
                 <div class="row g-2 w-100">
                     <div class="col-6">
-                        <a href="data:image/png;base64,{{ qr_code_base64 }}" download="qr_{{ codigo_qr_text }}.png" class="btn btn-outline-custom w-100 py-2">
+                        <a id="modalQrDownload" href="data:image/png;base64,{{ qr_code_base64 }}" download="qr_{{ codigo_qr_text }}.png" class="btn btn-outline-custom w-100 py-2">
                             Descargar QR
                         </a>
                     </div>

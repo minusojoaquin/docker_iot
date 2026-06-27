@@ -5,6 +5,7 @@ import logging
 import qrcode
 import smtplib
 from email.mime.text import MIMEText
+from email.mime.multipart import MIMEMultipart
 from datetime import datetime
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session
@@ -311,19 +312,18 @@ def registro_cliente():
                 # SMTP Integration: Dispatch email
                 if email:
                     try:
-                        smtp_server = 'smtp.gmail.com'
-                        smtp_port = 587
-                        smtp_user = os.environ.get("MAIL_USERNAME")
-                        smtp_pass = os.environ.get("MAIL_PASSWORD")
+                        email_remitente = os.environ.get("MAIL_USERNAME")
+                        app_password = os.environ.get("MAIL_PASSWORD")
                         
-                        msg = MIMEText(f"Bienvenido a RectiTrack.\n\nSus credenciales de acceso son:\nUsuario: {login_usr}\nContraseña: {password_usr}")
-                        msg['Subject'] = 'Credenciales de acceso RectiTrack'
-                        msg['From'] = smtp_user
+                        msg = MIMEMultipart()
+                        msg['From'] = email_remitente
                         msg['To'] = email
+                        msg['Subject'] = "Credenciales de Acceso - RectiTrack"
+                        msg.attach(MIMEText(f"Bienvenido a RectiTrack.\n\nSus credenciales de acceso son:\nUsuario: {login_usr}\nContraseña: {password_usr}", 'plain'))
                         
-                        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+                        server = smtplib.SMTP('smtp.gmail.com', 587)
                         server.starttls()
-                        server.login(smtp_user, smtp_pass)
+                        server.login(email_remitente, app_password)
                         server.send_message(msg)
                         server.quit()
                         logging.info(f"Email de credenciales enviado con éxito a {email}")
@@ -332,7 +332,7 @@ def registro_cliente():
                         import traceback
                         traceback.print_exc()
                         logging.error(f"Error al enviar email de credenciales: {smtp_err}")
-                        flash("Cliente guardado, pero falló el envío de correo.", "danger")
+                        flash("Cliente guardado, pero falló el envío de correo.", "warning")
             except Exception as e:
                 mysql.connection.rollback()
                 logging.error(f"Error registering new client: {e}")
@@ -601,6 +601,34 @@ def gestionar_pagos():
     pagos = cur.fetchall()
     cur.close()
     return render_template('gestionar_pagos.html', pagos=pagos)
+
+@app.route('/registrar_anticipo/<int:motor_id>', methods=['POST'])
+@require_gerente
+def registrar_anticipo(motor_id):
+    monto_str = request.form.get('monto')
+    if not monto_str:
+        flash("Debe ingresar un monto válido.", "warning")
+        return redirect(url_for('gestionar_pagos'))
+        
+    try:
+        monto = float(monto_str)
+        if monto <= 0:
+            flash("El monto debe ser mayor a cero.", "warning")
+            return redirect(url_for('gestionar_pagos'))
+            
+        cur = mysql.connection.cursor()
+        cur.execute("INSERT INTO Pago_Orden (id_orden, monto, fecha_pago, metodo_pago) VALUES (%s, %s, NOW(), 'Efectivo')", (motor_id, monto))
+        mysql.connection.commit()
+        cur.close()
+        flash("Anticipo registrado exitosamente. El saldo ha sido recalculado.", "success")
+    except ValueError:
+        flash("Monto inválido.", "danger")
+    except Exception as e:
+        mysql.connection.rollback()
+        logging.error(f"Error registrando anticipo: {e}")
+        flash("Error al registrar anticipo.", "danger")
+        
+    return redirect(url_for('gestionar_pagos'))
 
 @app.route('/panel-gerente/progreso')
 @require_gerente

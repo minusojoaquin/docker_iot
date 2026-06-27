@@ -186,3 +186,133 @@ h1, h2, h3, h4, h5, h6 {
     background-color: var(--light-orange) !important;
     border-color: var(--primary-orange) !important;
 }
+
+/* ============================================================
+   LOGIN PAGE OVERRIDES — Scoped to .card.shadow.border-0.p-3
+   Corporate palette: Navy #1A365D / Orange #FF6B00
+   ============================================================ */
+
+/* 1. Card container */
+.card.shadow.border-0.p-3 {
+    background-color: #1A365D !important;
+    border-radius: 12px !important;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.3) !important;
+    color: #ffffff;
+}
+
+/* Headings inside login card */
+.card.shadow.border-0.p-3 h4,
+.card.shadow.border-0.p-3 h5,
+.card.shadow.border-0.p-3 h6 {
+    color: #ffffff;
+}
+
+/* 2a. Form inputs — normal state */
+.card.shadow.border-0.p-3 .form-control {
+    background-color: rgba(255, 255, 255, 0.05) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+    border-radius: 0.5rem;
+}
+
+/* 2b. Placeholder text */
+.card.shadow.border-0.p-3 .form-control::placeholder {
+    color: rgba(255, 255, 255, 0.5) !important;
+    opacity: 1;
+}
+
+/* 2c. Focus state — dark background preserved, orange border + glow */
+.card.shadow.border-0.p-3 .form-control:focus {
+    background-color: rgba(255, 255, 255, 0.08) !important;
+    border-color: #FF6B00 !important;
+    box-shadow: 0 0 0 0.25rem rgba(255, 107, 0, 0.25) !important;
+    color: #ffffff !important;
+    outline: none;
+}
+
+/* 2d. Autofill override — prevents browser injecting white background */
+.card.shadow.border-0.p-3 .form-control:-webkit-autofill,
+.card.shadow.border-0.p-3 .form-control:-webkit-autofill:hover,
+.card.shadow.border-0.p-3 .form-control:-webkit-autofill:focus {
+    -webkit-box-shadow: 0 0 0 1000px #254570 inset !important;
+    -webkit-text-fill-color: #ffffff !important;
+    border-color: rgba(255, 255, 255, 0.2) !important;
+    caret-color: #ffffff;
+}
+
+/* 2e. Input group addon icons */
+.card.shadow.border-0.p-3 .input-group-text {
+    background-color: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #ffffff !important;
+}
+
+/* 2f. Form labels */
+.card.shadow.border-0.p-3 .form-label {
+    color: rgba(255, 255, 255, 0.8) !important;
+    font-weight: 600;
+    text-transform: uppercase;
+    font-size: 0.78rem;
+    letter-spacing: 0.04em;
+    margin-bottom: 0.4rem;
+}
+
+/* 3. Role selector — btn-group radio buttons */
+
+/* Inactive state: transparent with subtle border */
+.card.shadow.border-0.p-3 .btn-group .btn {
+    background-color: transparent !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: rgba(255, 255, 255, 0.6) !important;
+    font-weight: 500;
+    transition: border-color 0.2s, color 0.2s;
+}
+
+/* Hover on inactive */
+.card.shadow.border-0.p-3 .btn-group .btn:hover {
+    border-color: rgba(255, 107, 0, 0.6) !important;
+    color: rgba(255, 107, 0, 0.9) !important;
+    background-color: transparent !important;
+}
+
+/* Active/checked state: orange border + orange text, NO solid fill */
+.card.shadow.border-0.p-3 .btn-check:checked + .btn {
+    background-color: transparent !important;
+    border-color: #FF6B00 !important;
+    color: #FF6B00 !important;
+    font-weight: 700;
+    box-shadow: none !important;
+}
+
+/* Suppress Bootstrap :focus-visible glow on radio labels */
+.card.shadow.border-0.p-3 .btn-check:focus + .btn {
+    box-shadow: none !important;
+}
+
+/* 4. Primary action button ("Ingresar") — solid orange, deep navy text */
+.card.shadow.border-0.p-3 button[type="submit"].btn-warning,
+.card.shadow.border-0.p-3 .btn.btn-warning {
+    background-color: #FF6B00 !important;
+    border: none !important;
+    color: #1A365D !important;
+    font-weight: 700;
+    letter-spacing: 0.03em;
+    transition: background-color 0.2s ease;
+}
+
+.card.shadow.border-0.p-3 button[type="submit"].btn-warning:hover,
+.card.shadow.border-0.p-3 .btn.btn-warning:hover {
+    background-color: #FF8533 !important;
+    color: #1A365D !important;
+}
+
+/* 5. "Recuperar Contraseña" link */
+.card.shadow.border-0.p-3 a.text-warning {
+    color: #FF6B00 !important;
+    transition: color 0.2s;
+}
+
+.card.shadow.border-0.p-3 a.text-warning:hover {
+    color: #FF8533 !important;
+}
+

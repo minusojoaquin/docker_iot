@@ -7,6 +7,7 @@ import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import secrets
+import random
 from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session
@@ -54,6 +55,11 @@ def setup_db():
                     fecha_expiracion DATETIME NOT NULL,
                     usado BOOLEAN DEFAULT 0
                 )
+            """)
+            # 0b. Agregar columna email a Usuarios_Gerencia si no existe
+            cur.execute("""
+                ALTER TABLE Usuarios_Gerencia
+                ADD COLUMN IF NOT EXISTS email VARCHAR(255) DEFAULT NULL
             """)
             mysql.connection.commit()
             
@@ -136,11 +142,11 @@ def login():
         cur = mysql.connection.cursor()
         
         if rol == "gerente":
-            cur.execute("SELECT hash_password FROM Usuarios_Gerencia WHERE usuario = %s", (usuario,))
+            cur.execute("SELECT id, hash_password FROM Usuarios_Gerencia WHERE usuario = %s", (usuario,))
             row = cur.fetchone()
             cur.close()
-            
-            if (row and check_password_hash(row[0], password)) or (usuario == "admin" and password == "admin"):
+
+            if row and check_password_hash(row[1], password):
                 session.permanent = True
                 session["user_id"] = usuario
                 session["role"] = "gerente"
@@ -153,27 +159,13 @@ def login():
             cur.execute("SELECT id_operario, password, nombre, apellido FROM Operario WHERE login = %s", (usuario,))
             row = cur.fetchone()
             cur.close()
-            
-            is_valid = False
-            operario_id = None
-            nombre_completo = ""
-            
-            if row:
-                if check_password_hash(row[1], password):
-                    is_valid = True
-                    operario_id = row[0]
-                    nombre_completo = f"{row[2]} {row[3]}"
-            elif usuario == "operario" and password == "operario":
-                is_valid = True
-                operario_id = 1
-                nombre_completo = "Operario Default"
-                
-            if is_valid:
+
+            if row and check_password_hash(row[1], password):
                 session.permanent = True
                 session["user_id"] = usuario
                 session["role"] = "operario"
-                session["operario_id"] = operario_id
-                logging.info(f"Autenticación exitosa - Operario: {nombre_completo}")
+                session["operario_id"] = row[0]
+                logging.info(f"Autenticación exitosa - Operario: {row[2]} {row[3]}")
                 return redirect(url_for('panel_operario'))
             else:
                 flash("Credenciales de Operario incorrectas.")
@@ -241,89 +233,102 @@ def logout():
 @app.route("/recuperar-password", methods=["GET", "POST"])
 def recuperar_password():
     if request.method == "POST":
-        email = request.form.get("email")
-        if not email:
-            flash("Debe proporcionar un email/usuario.", "warning")
-            return redirect(url_for('recuperar_password'))
-            
+        username = request.form.get("username", "").strip()
+        email = request.form.get("email", "").strip()
+
         cur = mysql.connection.cursor()
-        cur.execute("SELECT usuario FROM Usuarios_Gerencia WHERE usuario = %s", (email,))
+        # Dual-factor: match username AND email in Usuarios_Gerencia
+        cur.execute(
+            "SELECT usuario, email FROM Usuarios_Gerencia WHERE usuario = %s AND email = %s",
+            (username, email)
+        )
         row = cur.fetchone()
-        
+
         if row:
             usuario_id = row[0]
-            token = secrets.token_urlsafe(32)
+            dest_email = row[1]
+            # Generate 6-digit OTP — no URL required, bypasses proxy routing entirely
+            pin = random.randint(100000, 999999)
             fecha_expiracion = datetime.now() + timedelta(minutes=30)
-            
+
             cur.execute("""
                 INSERT INTO TokenRecuperacion (usuario_id, token_hash, fecha_expiracion, usado)
                 VALUES (%s, %s, %s, 0)
-            """, (usuario_id, token, fecha_expiracion))
+            """, (usuario_id, str(pin), fecha_expiracion))
             mysql.connection.commit()
-            
+
             try:
-                smtp_server = os.environ.get("SMTP_SERVER", "localhost")
-                smtp_port = int(os.environ.get("SMTP_PORT", 1025))
-                smtp_user = os.environ.get("SMTP_USER", "")
-                smtp_pass = os.environ.get("SMTP_PASSWORD", "")
-                
-                reset_url = url_for('resetear_password', token=token, _external=True)
-                email_body = f"<h2>Recuperación de Contraseña</h2><p>Haga clic en el siguiente enlace para restablecer su contraseña:</p><p><a href='{reset_url}'>{reset_url}</a></p><p>Este enlace expirará en 30 minutos.</p>"
-                
+                smtp_server = os.environ.get("SMTP_SERVER", "smtp.gmail.com")
+                smtp_port = int(os.environ.get("SMTP_PORT", 587))
+                remitente = os.environ.get("MAIL_USERNAME", "")
+                password = os.environ.get("MAIL_PASSWORD", "")  # 16-char Google App Password
+
+                html_body = (
+                    f"<p>Su código de recuperación de 6 dígitos es: <strong>{pin}</strong></p>"
+                    f"<p>Ingrese este código en el sistema para restablecer su contraseña.</p>"
+                )
+
                 msg = MIMEMultipart()
-                msg['Subject'] = 'RectiTrack - Recuperación de Contraseña'
-                msg['From'] = 'no-reply@rectitrack.com'
-                msg['To'] = email
-                msg.attach(MIMEText(email_body, 'html'))
-                
+                msg['Subject'] = 'RectiTrack - Código de Recuperación'
+                msg['From'] = remitente
+                msg['To'] = dest_email
+                msg.attach(MIMEText(html_body, 'html'))
+
                 server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-                if smtp_user and smtp_pass:
-                    server.starttls()
-                    server.login(smtp_user, smtp_pass)
+                server.ehlo()
+                server.starttls()
+                server.ehlo()
+                server.login(remitente, password)
                 server.send_message(msg)
                 server.quit()
-                logging.info(f"Email de recuperación enviado con éxito a {email}")
+                logging.info(f"OTP de recuperación enviado con éxito a {dest_email}")
             except Exception as smtp_err:
-                logging.error(f"Error al enviar email de recuperación: {smtp_err}")
-        
+                logging.error(f"Error al enviar OTP de recuperación: {smtp_err}")
+
         cur.close()
-        flash('Si el correo pertenece a un Gerente registrado, se ha enviado un enlace de recuperación.', 'info')
-        return redirect(url_for('login'))
-        
+        flash('Si los datos coinciden, se ha enviado un correo.', 'info')
+        return redirect(url_for('resetear_password'))
+
     return render_template('recuperar_password.html')
 
-@app.route("/reset-password/<token>", methods=["GET", "POST"])
-def resetear_password(token):
-    cur = mysql.connection.cursor()
-    cur.execute("""
-        SELECT id, usuario_id FROM TokenRecuperacion 
-        WHERE token_hash = %s AND usado = 0 AND fecha_expiracion > NOW()
-    """, (token,))
-    row = cur.fetchone()
-    
-    if not row:
-        cur.close()
-        flash("El enlace de recuperación es inválido o ha expirado.", "warning")
-        return redirect(url_for('login'))
-        
-    token_id = row[0]
-    usuario_id = row[1]
-    
+@app.route("/reset-password", methods=["GET", "POST"])
+def resetear_password():
     if request.method == "POST":
-        nueva_password = request.form.get("nueva_password")
-        
-        if nueva_password:
-            passhash = generate_password_hash(nueva_password, method='scrypt', salt_length=16)
-            cur.execute("UPDATE Usuarios_Gerencia SET hash_password = %s WHERE usuario = %s", (passhash, usuario_id))
-            cur.execute("UPDATE TokenRecuperacion SET usado = 1 WHERE id = %s", (token_id,))
-            mysql.connection.commit()
+        otp = request.form.get("otp", "").strip()
+        nueva_password = request.form.get("nueva_password", "")
+
+        if not otp or not nueva_password:
+            flash("Debe completar todos los campos.", "warning")
+            return render_template('resetear_password.html')
+
+        cur = mysql.connection.cursor()
+        cur.execute("""
+            SELECT id, usuario_id FROM TokenRecuperacion
+            WHERE token_hash = %s AND usado = 0 AND fecha_expiracion > NOW()
+        """, (otp,))
+        row = cur.fetchone()
+
+        if not row:
             cur.close()
-            
-            flash("Su contraseña ha sido actualizada con éxito.", "success")
-            return redirect(url_for('login'))
-            
-    cur.close()
-    return render_template('resetear_password.html', token=token)
+            flash("El código OTP es inválido o ha expirado.", "danger")
+            return render_template('resetear_password.html')
+
+        usuario_id = row[1]
+        passhash = generate_password_hash(nueva_password, method='scrypt', salt_length=16)
+        cur.execute(
+            "UPDATE Usuarios_Gerencia SET hash_password = %s WHERE usuario = %s",
+            (passhash, usuario_id)
+        )
+        cur.execute(
+            "UPDATE TokenRecuperacion SET usado = 1 WHERE token_hash = %s",
+            (otp,)
+        )
+        mysql.connection.commit()
+        cur.close()
+        flash('Contraseña modificada con éxito. Ya puede ingresar.', 'success')
+        return redirect(url_for('login'))
+
+    return render_template('resetear_password.html')
 
 # ==========================================
 # RUTAS DE MÓDULOS GERENCIALES
@@ -415,18 +420,20 @@ def registro_cliente():
                 # SMTP Integration: Dispatch email
                 if email:
                     try:
-                        email_remitente = os.environ.get("MAIL_USERNAME")
-                        app_password = os.environ.get("MAIL_PASSWORD")
-                        
+                        remitente = os.environ.get("MAIL_USERNAME")
+                        password = os.environ.get("MAIL_PASSWORD")
+
                         msg = MIMEMultipart()
-                        msg['From'] = email_remitente
+                        msg['From'] = remitente
                         msg['To'] = email
                         msg['Subject'] = "Credenciales de Acceso - RectiTrack"
                         msg.attach(MIMEText(f"Bienvenido a RectiTrack.\n\nSus credenciales de acceso son:\nUsuario: {login_usr}\nContraseña: {password_usr}", 'plain'))
-                        
+
                         server = smtplib.SMTP('smtp.gmail.com', 587)
+                        server.ehlo()
                         server.starttls()
-                        server.login(email_remitente, app_password)
+                        server.ehlo()
+                        server.login(remitente, password)
                         server.send_message(msg)
                         server.quit()
                         logging.info(f"Email de credenciales enviado con éxito a {email}")
@@ -576,11 +583,9 @@ def registro_motor():
                 
                 if client_email:
                     try:
-                        smtp_server = os.environ.get("SMTP_SERVER", "localhost")
-                        smtp_port = int(os.environ.get("SMTP_PORT", 1025))
-                        smtp_user = os.environ.get("SMTP_USER", "")
-                        smtp_pass = os.environ.get("SMTP_PASSWORD", "")
-                        
+                        remitente = os.environ.get("MAIL_USERNAME", "")
+                        password = os.environ.get("MAIL_PASSWORD", "")
+
                         email_body = (
                             f"Hola {cliente[1]} {cliente[2]},\n\n"
                             f"Su motor {marca.strip()} {modelo.strip()} ha sido registrado exitosamente en RectiTrack.\n"
@@ -590,16 +595,17 @@ def registro_motor():
                             f"Contraseña: {client_password}\n\n"
                             f"Gracias por confiar en nuestros servicios.\nEquipo RectiTrack"
                         )
-                        
+
                         msg = MIMEText(email_body)
                         msg['Subject'] = 'RectiTrack - Motor Registrado y Credenciales'
-                        msg['From'] = 'no-reply@rectitrack.com'
+                        msg['From'] = remitente
                         msg['To'] = client_email
-                        
-                        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
-                        if smtp_user and smtp_pass:
-                            server.starttls()
-                            server.login(smtp_user, smtp_pass)
+
+                        server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
+                        server.ehlo()
+                        server.starttls()
+                        server.ehlo()
+                        server.login(remitente, password)
                         server.send_message(msg)
                         server.quit()
                         logging.info(f"Email de registro de motor enviado con éxito a {client_email}")

@@ -54,6 +54,8 @@ services:
       - MYSQL_DB=rectitrack_db
       - MYSQL_HOST=mariadb
       - FLASK_SECRET_KEY=${FLASK_SECRET_KEY}
+      - MAIL_USERNAME=${MAIL_USERNAME}
+      - MAIL_PASSWORD=${MAIL_PASSWORD}
     restart: unless-stopped
     depends_on:
       - mariadb

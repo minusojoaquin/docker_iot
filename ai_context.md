@@ -47,11 +47,24 @@ El sistema segmenta estrictamente el acceso y las interfaces en función de tres
     *   `/panel-gerente`: Renderiza el panel principal de opciones del administrador.
     *   `/panel-gerente/asignar`: Procesa la lógica DML de inserción de nuevas tareas técnicas en la base de datos y recupera listas relacionales de áreas, operarios y motores.
     *   `/panel-gerente/stock`: Muestra el estado crítico de insumos e inventario del taller[cite: 3].
-    *   `/panel-gerente/pagos`: Calcula de manera dinámica los adelantos y saldos deudores cruzando datos de las tablas `OrdenTrabajo`, `Motor` y `Cliente`.
+    *   `/panel-gerente/pagos`: Calcula de manera dinámica los adelantos y saldos deudores cruzando datos de las tablas `OrdenTrabajo`, `Pago_Orden`, `Motor` y `Cliente`.
     *   `/panel-gerente/progreso`: Genera las barras de progreso del taller computando el estado del flujo de mecanizado.
-*   **Plantillas Activas (`templates/`):** Estructura adaptada al diseño corporativo de Figma con hojas de estilo responsive basadas en Bootstrap. Archivos: `layout.html`, `panel_gerente.html`, `asignar_tareas.html`, `gestionar_stock.html`, `gestionar_pagos.html` y `progreso_motores.html`.
+*   **Plantillas Activas (`templates/`):** Estructura adaptada al diseño corporativo de Figma con hojas de estilo responsive basadas en Bootstrap. Archivos: `layout.html`, `panel_gerente.html`, `asignar_tareas.html`, `gestionar_stock.html`, `gestionar_pagos.html`, `progreso_motores.html`, `panel_operario.html`, `tareas_operario.html`, `detalle_tarea_operario.html`, `escanear_operario.html`, `ficha_tecnica_motor.html`, `panel_cliente.html`.
 
-## 6. Instrucciones para el Agente de IA
+## 6. Gap Analysis & Sprint Implementations
+Durante este sprint, se implementaron las siguientes características y resoluciones de Requisitos Funcionales (RF):
+
+### Cambios en Base de Datos
+- **`Tarea`**: Añadida columna `prioridad ENUM('Alta', 'Media', 'Baja') DEFAULT 'Media'` y restricción `DEFAULT 'PENDIENTE'` en `estado_tarea`. Añadido soporte para "PAUSADA" (RF05, RF10).
+- **`OrdenTrabajo`**: Añadida columna `fecha_terminado` (RF03, RF06).
+- **`Notificaciones`**: Nueva tabla para alertas de sistema críticas y pausas de operario (RF03, RF06, RF11).
+
+### Nuevos Endpoints / Lógica
+- **Gerencia**: Agregado `/api/status/gerente` y notificaciones en dashboard para motores inactivos > 30 días y tareas pausadas (RF03, RF06, RF16). Actualizado cálculo de saldo deudor utilizando `Pago_Orden` (RF07).
+- **Operario**: Endpoint `/scan/<codigo_qr>` que resuelve la `ficha_tecnica_motor.html` (RF08). Soporte para campo de observaciones en tareas y estado `PAUSADA` que reporta a Gerencia (RF09, RF11). Agregado `/api/status/operario` (RF16).
+- **Cliente**: `panel_cliente.html` reconstruido. Stub para alertas de WhatsApp (`send_whatsapp_alert`) al finalizar orden (RF14). Endpoint de pago stub (`/api/pagar/<id_orden>`) (RF15). Renderización de saldos en tiempo real (RF12, RF13).
+
+## 7. Instrucciones para el Agente de IA
 1.  **Preservación de Estructuras:** Al modificar el código en `crud.py`, bajo ningún concepto elimines la lógica de conexión a las tablas relacionales existentes en `rectitrack_db` ni las funciones del decorador de sesión del Gerente.
 2.  **Fidelidad de Diseño:** Cualquier cambio en los componentes visuales de la carpeta `templates/` debe respetar estrictamente la paleta de colores de RectiTrack (`#0b2545` para azul principal, botones en naranja `#f3722c`) e interfaces limpias adaptadas a entornos móviles y de taller mecánico[cite: 3].
 3.  **Aislamiento de Puertos:** No intentes mapear puertos adicionales expuestos al VPS de forma directa. Todo tráfico HTTP/HTTPS entrante debe ser canalizado exclusivamente a través del puerto configurado en SWAG (`10213`) mapeando subrutas de Nginx.

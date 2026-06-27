@@ -1,0 +1,90 @@
+{% extends 'layout.html' %}
+{% block content %}
+<div class="row justify-content-center mb-5">
+    <div class="col-12 col-md-8 col-lg-6">
+        
+        <!-- Header -->
+        <div class="mb-4">
+            <a href="{{ url_for('escanear_operario') }}" class="btn btn-sm btn-outline-secondary mb-3 shadow-sm" style="border-radius: 0.625rem;">
+                <i class="bi bi-arrow-left"></i> Volver a Escanear
+            </a>
+            <h2 class="fw-bold text-dark mb-1" style="font-size: 1.5rem; letter-spacing: -0.02em;">Ficha Técnica del Motor</h2>
+            <p class="text-secondary small">Especificaciones y trazabilidad de piezas</p>
+        </div>
+
+        <!-- Engine Data Block -->
+        <div class="p-3 mb-4 shadow-sm" style="background-color: #ffffff; border: 1px solid rgba(0, 0, 0, 0.08) !important; border-radius: 0.625rem;">
+            <span class="d-block text-secondary fw-bold small mb-3" style="letter-spacing: 0.05em; color: var(--primary-blue) !important;">DATOS DEL MOTOR</span>
+            
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">QR / Código</span>
+                <strong class="text-dark font-monospace">{{ motor[3] }}</strong>
+            </div>
+            
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">Cliente</span>
+                <strong class="text-dark">{{ motor[5] }} {{ motor[6] }}</strong>
+            </div>
+
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">Marca y Modelo</span>
+                <strong class="text-dark">{{ motor[1] }} {{ motor[2] }}</strong>
+            </div>
+
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">Nro. de Serie Bloque</span>
+                <strong class="text-dark">{{ motor[4] }}</strong>
+            </div>
+
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">Fecha de Ingreso</span>
+                <strong class="text-dark">{{ motor[8].strftime('%d/%m/%Y') }}</strong>
+            </div>
+
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">Origen de Repuestos</span>
+                <strong class="text-dark">{{ motor[9] }}</strong>
+            </div>
+
+            <div class="d-flex justify-content-between mb-2 pb-2 border-bottom" style="font-size: 0.9rem; border-color: rgba(0,0,0,0.05) !important;">
+                <span class="text-secondary">Estado General</span>
+                <strong class="text-dark">{{ motor[7] }}</strong>
+            </div>
+        </div>
+
+        <h5 class="fw-bold mb-3" style="color: var(--primary-blue);">Historial de Trabajos</h5>
+        
+        {% if tareas %}
+            <div class="d-flex flex-column gap-3">
+            {% for t in tareas %}
+                <div class="card border-0 shadow-sm" style="border-radius: 0.625rem; border: 1px solid rgba(0, 0, 0, 0.08) !important;">
+                    <div class="card-body p-3">
+                        <div class="d-flex justify-content-between align-items-center mb-2">
+                            <h6 class="fw-bold mb-0 text-dark">{{ t[3] }}</h6>
+                            <span class="badge" style="background-color: {% if t[1] == 'PENDIENTE' %}var(--alert){% elif t[1] == 'EN_PROCESO' %}var(--primary-orange){% elif t[1] == 'PAUSADA' %}#ffc107{% else %}var(--primary-blue){% endif %}; color: {% if t[1] == 'PAUSADA' %}#000{% else %}white{% endif %}; border-radius: 20px;">
+                                {{ t[1] }}
+                            </span>
+                        </div>
+                        <p class="small text-muted mb-2">{{ t[0] }}</p>
+                        <div class="d-flex justify-content-between align-items-center mb-0 pb-0 border-top pt-2 mt-2">
+                            <small class="text-secondary"><i class="bi bi-person-fill"></i> {{ t[4] }} {{ t[5] }}</small>
+                            <small class="text-secondary"><i class="bi bi-clock"></i> {{ t[2].strftime('%d/%m/%Y %H:%M') }}</small>
+                        </div>
+                        {% if t[6] %}
+                            <div class="mt-2 p-2 bg-light border-start border-4 border-warning small" style="border-radius: 0.25rem;">
+                                <strong>Observaciones:</strong> {{ t[6] }}
+                            </div>
+                        {% endif %}
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        {% else %}
+            <div class="alert alert-info border-0 shadow-sm" style="border-radius: 0.625rem;">
+                No hay trabajos registrados en este motor.
+            </div>
+        {% endif %}
+
+    </div>
+</div>
+{% endblock %}

@@ -54,42 +54,42 @@
 
         <!-- Sticky/Fixed Footer controls placeholder -->
         <div class="mt-5 pt-3">
-            {% if tarea[2] == 'PENDIENTE' %}
-                <!-- State 1: Iniciar Trabajo -->
-                <div class="d-grid">
-                    <form action="{{ url_for('detalle_tarea_operario', id_tarea=tarea[0]) }}" method="POST" class="w-100">
-                        <input type="hidden" name="estado" value="EN_PROCESO">
-                        <button type="submit" class="btn btn-primary-orange py-3 w-100 fw-bold">
-                            <i class="bi bi-play-fill me-1"></i> Iniciar Trabajo
+            <form action="{{ url_for('detalle_tarea_operario', id_tarea=tarea[0]) }}" method="POST" class="w-100">
+                
+                <!-- Observaciones -->
+                <div class="mb-4 text-start">
+                    <label for="observaciones" class="form-label text-secondary small fw-bold" style="letter-spacing: 0.05em;">OBSERVACIONES TÉCNICAS</label>
+                    <textarea class="form-control border-0 shadow-sm" id="observaciones" name="observaciones" rows="3" placeholder="Indique novedades técnicas, problemas, o justificación de pausa..." style="border-radius: 0.625rem; background-color: #f8f9fa;">{{ tarea[12] if tarea[12] else '' }}</textarea>
+                </div>
+
+                {% if tarea[2] == 'PENDIENTE' or tarea[2] == 'PAUSADA' %}
+                    <!-- State 1: Iniciar Trabajo -->
+                    <div class="d-grid">
+                        <button type="submit" name="estado" value="EN_PROCESO" class="btn btn-primary-orange py-3 w-100 fw-bold shadow-sm" style="border-radius: 0.625rem;">
+                            <i class="bi bi-play-fill me-1 fs-5"></i> {% if tarea[2] == 'PAUSADA' %}Reanudar Trabajo{% else %}Iniciar Trabajo{% endif %}
                         </button>
-                    </form>
-                </div>
-            {% elif tarea[2] == 'EN_PROCESO' %}
-                <!-- State 2: Pausar / Finalizar Tarea -->
-                <div class="row g-2">
-                    <div class="col-6">
-                        <form action="{{ url_for('detalle_tarea_operario', id_tarea=tarea[0]) }}" method="POST">
-                            <input type="hidden" name="estado" value="PENDIENTE">
-                            <button type="submit" class="btn btn-outline-custom w-100 py-3">
-                                <i class="bi bi-pause-fill me-1"></i> Pausar
-                            </button>
-                        </form>
                     </div>
-                    <div class="col-6">
-                        <form action="{{ url_for('detalle_tarea_operario', id_tarea=tarea[0]) }}" method="POST">
-                            <input type="hidden" name="estado" value="FINALIZADA">
-                            <button type="submit" class="btn btn-primary-blue w-100 py-3 fw-bold" style="background-color: var(--primary-blue);">
-                                <i class="bi bi-check-lg me-1"></i> Finalizar Tarea
+                {% elif tarea[2] == 'EN_PROCESO' %}
+                    <!-- State 2: Pausar / Finalizar Tarea -->
+                    <div class="row g-2">
+                        <div class="col-6">
+                            <button type="submit" name="estado" value="PAUSADA" class="btn btn-warning text-dark w-100 py-3 fw-bold shadow-sm" style="border-radius: 0.625rem;">
+                                <i class="bi bi-pause-fill me-1 fs-5"></i> Pausar
                             </button>
-                        </form>
+                        </div>
+                        <div class="col-6">
+                            <button type="submit" name="estado" value="FINALIZADA" class="btn btn-primary-blue w-100 py-3 fw-bold shadow-sm" style="background-color: var(--primary-blue); border-radius: 0.625rem;">
+                                <i class="bi bi-check-lg me-1 fs-5"></i> Finalizar Tarea
+                            </button>
+                        </div>
                     </div>
-                </div>
-            {% else %}
-                <!-- Completed State -->
-                <div class="alert alert-success text-center py-3 fw-bold border-0 shadow-sm" style="border-radius: var(--radius); background-color: #d1e7dd; color: #0f5132;">
-                    <i class="bi bi-check-circle-fill me-2 fs-5"></i> Trabajo Finalizado con Éxito
-                </div>
-            {% endif %}
+                {% else %}
+                    <!-- Completed State -->
+                    <div class="alert alert-success text-center py-3 fw-bold border-0 shadow-sm" style="border-radius: 0.625rem; background-color: #d1e7dd; color: #0f5132;">
+                        <i class="bi bi-check-circle-fill me-2 fs-5"></i> Trabajo Finalizado con Éxito
+                    </div>
+                {% endif %}
+            </form>
         </div>
 
     </div>

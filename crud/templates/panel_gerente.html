@@ -11,6 +11,33 @@
 </div>
 
 <div class="container"> <!-- Reopen layout container -->
+    <!-- ALERTS SECTION -->
+    <div id="alerts-section" class="mb-4">
+        {% if notificaciones or motores_antiguos %}
+            <h5 class="fw-bold mb-3" style="color: var(--primary-blue);">Alertas Activas</h5>
+            <div id="alerts-container">
+            {% for notif in notificaciones %}
+                <div class="alert alert-warning alert-dismissible fade show d-flex align-items-center shadow-sm" role="alert" style="border-radius: 0.625rem;">
+                    <i class="bi bi-exclamation-triangle-fill fs-4 me-3 text-warning"></i>
+                    <div>
+                        <strong>{{ notif[2] }}:</strong> {{ notif[1] }}
+                        <small class="d-block text-muted mt-1">{{ notif[3] }}</small>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close" onclick="marcarLeida({{ notif[0] }})"></button>
+                </div>
+            {% endfor %}
+            {% for motor in motores_antiguos %}
+                <div class="alert alert-danger d-flex align-items-center shadow-sm" role="alert" style="border-radius: 0.625rem;">
+                    <i class="bi bi-clock-history fs-4 me-3 text-danger"></i>
+                    <div>
+                        <strong>Motor Terminado > 30 días:</strong> El motor con QR <strong>{{ motor[1] }}</strong> está finalizado desde {{ motor[2].strftime('%d/%m/%Y') }} y sigue en el taller.
+                    </div>
+                </div>
+            {% endfor %}
+            </div>
+        {% endif %}
+    </div>
+    
     <div class="d-flex flex-column gap-3 mb-5">
         <!-- Card 1: Registrar Ingreso -->
         <a href="{{ url_for('registro_cliente') }}" class="text-decoration-none text-dark d-block">
@@ -78,4 +105,34 @@
         </a>
     </div>
 </div>
+
+<script>
+function marcarLeida(id) {
+    fetch('/api/notificaciones/' + id + '/marcar-leida', {method: 'POST'})
+        .catch(err => console.error(err));
+}
+
+// RF16: Asynchronous State Updates via Polling
+let lastUnread = {{ notificaciones|length if notificaciones else 0 }};
+let lastOld = {{ motores_antiguos|length if motores_antiguos else 0 }};
+
+setInterval(() => {
+    fetch('/api/status/gerente')
+        .then(response => response.json())
+        .then(data => {
+            if (data.unread_notifications > lastUnread || data.old_engines > lastOld) {
+                let badge = document.getElementById('updates-badge');
+                if (!badge) {
+                    badge = document.createElement('div');
+                    badge.id = 'updates-badge';
+                    badge.className = 'alert alert-info position-fixed bottom-0 end-0 m-3 shadow d-flex align-items-center';
+                    badge.style.zIndex = 1000;
+                    badge.innerHTML = '<i class="bi bi-info-circle-fill me-2 fs-5"></i><div>Hay nuevas actualizaciones operativas. <a href="javascript:location.reload()" class="alert-link fw-bold">Ver ahora</a></div>';
+                    document.body.appendChild(badge);
+                }
+            }
+        })
+        .catch(err => console.error("Error polling API:", err));
+}, 10000);
+</script>
 {% endblock %}

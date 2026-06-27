@@ -15,6 +15,11 @@ from werkzeug.security import check_password_hash, generate_password_hash
 # Configuración del Logger
 logging.basicConfig(format='%(asctime)s - RECTITRACK - %(levelname)s - %(message)s', level=logging.INFO)
 
+# RF14: WhatsApp API Stub
+def send_whatsapp_alert(phone, message):
+    # Stub function for Twilio/Meta API integration
+    logging.info(f"WhatsApp API [STUB] - Mensaje enviado a {phone}: {message}")
+
 app = Flask(__name__)
 
 # Middleware para Proxy Inverso (Nginx/SWAG)
@@ -222,7 +227,29 @@ def logout():
 @app.route('/panel-gerente')
 @require_gerente
 def panel_gerente():
-    return render_template('panel_gerente.html')
+    cur = mysql.connection.cursor()
+    # Fetch unread notifications
+    cur.execute("""
+        SELECT id_notificacion, mensaje, tipo, fecha_creacion, id_orden, id_tarea 
+        FROM Notificaciones 
+        WHERE leida = FALSE 
+        ORDER BY fecha_creacion DESC
+    """)
+    notificaciones = cur.fetchall()
+    
+    # Check for engines > 30 days completed
+    cur.execute("""
+        SELECT ot.id_orden, m.codigo_qr, ot.fecha_terminado 
+        FROM OrdenTrabajo ot
+        JOIN Motor m ON ot.id_motor = m.id_motor
+        WHERE ot.estado_general IN ('HECHO', 'TERMINADO') 
+        AND ot.fecha_terminado IS NOT NULL
+        AND DATEDIFF(NOW(), ot.fecha_terminado) > 30
+    """)
+    motores_antiguos = cur.fetchall()
+    
+    cur.close()
+    return render_template('panel_gerente.html', notificaciones=notificaciones, motores_antiguos=motores_antiguos)
 
 @app.route('/panel-gerente/registro-cliente', methods=['GET', 'POST'])
 @require_gerente
@@ -521,7 +548,8 @@ def gestionar_pagos():
     cur = mysql.connection.cursor()
     cur.execute("""
         SELECT ot.id_orden, m.codigo_qr, c.nombre, c.apellido, ot.monto_total, 
-               (ot.monto_total - ot.saldo_pendiente) AS anticipo, ot.saldo_pendiente
+               COALESCE((SELECT SUM(monto) FROM Pago_Orden WHERE id_orden = ot.id_orden), 0) AS anticipo, 
+               (ot.monto_total - COALESCE((SELECT SUM(monto) FROM Pago_Orden WHERE id_orden = ot.id_orden), 0)) AS saldo_pendiente
         FROM OrdenTrabajo ot 
         JOIN Motor m ON ot.id_motor = m.id_motor
         JOIN Cliente c ON m.dni_cliente = c.dni
@@ -552,6 +580,37 @@ def progreso_motores():
     cur.close()
     return render_template('progreso_motores.html', progresos=progresos)
 
+@app.route('/api/status/gerente')
+@require_gerente
+def api_status_gerente():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT COUNT(*) FROM Notificaciones WHERE leida = FALSE")
+    unread_notifications = cur.fetchone()[0]
+    
+    cur.execute("""
+        SELECT COUNT(*)
+        FROM OrdenTrabajo ot
+        WHERE ot.estado_general IN ('HECHO', 'TERMINADO') 
+        AND ot.fecha_terminado IS NOT NULL
+        AND DATEDIFF(NOW(), ot.fecha_terminado) > 30
+    """)
+    old_engines = cur.fetchone()[0]
+    cur.close()
+    
+    return {
+        "unread_notifications": unread_notifications,
+        "old_engines": old_engines
+    }
+
+@app.route('/api/notificaciones/<int:id_notificacion>/marcar-leida', methods=['POST'])
+@require_gerente
+def marcar_notificacion_leida(id_notificacion):
+    cur = mysql.connection.cursor()
+    cur.execute("UPDATE Notificaciones SET leida = TRUE WHERE id_notificacion = %s", (id_notificacion,))
+    mysql.connection.commit()
+    cur.close()
+    return {"status": "ok"}
+
 @app.route('/panel-operario')
 @require_operario
 def panel_operario():
@@ -563,13 +622,13 @@ def tareas_operario():
     cur = mysql.connection.cursor()
     cur.execute("""
         SELECT t.id_tarea, t.descripcion_trabajo, t.estado_tarea, t.fecha_actualizacion, 
-               ot.id_orden, m.marca, m.modelo, m.codigo_qr, a.nombre_area
+               ot.id_orden, m.marca, m.modelo, m.codigo_qr, a.nombre_area, t.prioridad
         FROM Tarea t
         JOIN OrdenTrabajo ot ON t.id_orden = ot.id_orden
         JOIN Motor m ON ot.id_motor = m.id_motor
         JOIN Area a ON t.id_area = a.id_area
         WHERE t.id_operario = %s
-        ORDER BY t.fecha_actualizacion DESC
+        ORDER BY FIELD(t.prioridad, 'Alta', 'Media', 'Baja'), t.fecha_actualizacion DESC
     """, (session.get("operario_id"),))
     tareas = cur.fetchall()
     cur.close()
@@ -582,27 +641,46 @@ def detalle_tarea_operario(id_tarea):
     
     if request.method == 'POST':
         nuevo_estado = request.form.get('estado')
-        if nuevo_estado in ['PENDIENTE', 'EN_PROCESO', 'HECHO', 'FINALIZADA']:
+        observaciones = request.form.get('observaciones', '')
+        if nuevo_estado in ['PENDIENTE', 'EN_PROCESO', 'HECHO', 'FINALIZADA', 'PAUSADA']:
             try:
                 cur.execute("""
                     UPDATE Tarea 
-                    SET estado_tarea = %s, fecha_actualizacion = %s 
+                    SET estado_tarea = %s, fecha_actualizacion = %s, observaciones = %s
                     WHERE id_tarea = %s AND id_operario = %s
-                """, (nuevo_estado, datetime.now(), id_tarea, session.get("operario_id")))
+                """, (nuevo_estado, datetime.now(), observaciones, id_tarea, session.get("operario_id")))
                 
                 cur.execute("SELECT id_orden FROM Tarea WHERE id_tarea = %s", (id_tarea,))
                 order_row = cur.fetchone()
                 if order_row:
                     id_orden = order_row[0]
-                    ot_estado = 'EN_PROCESO' if nuevo_estado == 'EN_PROCESO' else ('HECHO' if nuevo_estado in ['HECHO', 'FINALIZADA'] else 'CREADO')
-                    cur.execute("""
-                        UPDATE OrdenTrabajo 
-                        SET estado_general = %s 
-                        WHERE id_orden = %s
-                    """, (ot_estado, id_orden))
+                    ot_estado = 'EN_PROCESO' if nuevo_estado in ['EN_PROCESO', 'PAUSADA'] else ('HECHO' if nuevo_estado in ['HECHO', 'FINALIZADA'] else 'CREADO')
+                    
+                    if nuevo_estado in ['HECHO', 'FINALIZADA']:
+                        cur.execute("UPDATE OrdenTrabajo SET estado_general = %s, fecha_terminado = NOW() WHERE id_orden = %s", (ot_estado, id_orden))
+                        
+                        # Trigger RF14: WhatsApp Alert
+                        cur.execute("""
+                            SELECT c.telefono, c.nombre, m.marca, m.modelo 
+                            FROM Cliente c 
+                            JOIN Motor m ON c.dni = m.dni_cliente 
+                            WHERE m.id_motor = %s
+                        """, (tarea[11],))
+                        client_data = cur.fetchone()
+                        if client_data:
+                            msg = f"Hola {client_data[1]}, el trabajo en su motor {client_data[2]} {client_data[3]} ha sido finalizado. Puede pasar a retirarlo."
+                            send_whatsapp_alert(client_data[0], msg)
+                    else:
+                        cur.execute("UPDATE OrdenTrabajo SET estado_general = %s WHERE id_orden = %s", (ot_estado, id_orden))
+                    
+                    if nuevo_estado == 'PAUSADA':
+                        cur.execute("""
+                            INSERT INTO Notificaciones (mensaje, tipo, id_orden, id_tarea) 
+                            VALUES (%s, 'ALERTA', %s, %s)
+                        """, (f"Tarea {id_tarea} pausada por operario. Obs: {observaciones}", id_orden, id_tarea))
                 
                 mysql.connection.commit()
-                flash("Estado de la tarea actualizado.")
+                flash("Estado de la tarea y observaciones actualizados.")
             except Exception as e:
                 mysql.connection.rollback()
                 logging.error(f"Error updating task state: {e}")
@@ -613,7 +691,7 @@ def detalle_tarea_operario(id_tarea):
     cur.execute("""
         SELECT t.id_tarea, t.descripcion_trabajo, t.estado_tarea, t.fecha_actualizacion,
                ot.id_orden, m.marca, m.modelo, m.codigo_qr, a.nombre_area,
-               c.nombre, c.apellido, m.id_motor
+               c.nombre, c.apellido, m.id_motor, t.observaciones
         FROM Tarea t
         JOIN OrdenTrabajo ot ON t.id_orden = ot.id_orden
         JOIN Motor m ON ot.id_motor = m.id_motor
@@ -639,21 +717,59 @@ def escanear_operario():
         if codigo_qr:
             cur = mysql.connection.cursor()
             cur.execute("""
-                SELECT m.id_motor, m.marca, m.modelo, m.codigo_qr, c.nombre, c.apellido, ot.estado_general
+                SELECT m.codigo_qr
                 FROM Motor m
-                JOIN Cliente c ON m.dni_cliente = c.dni
-                LEFT JOIN OrdenTrabajo ot ON m.id_motor = ot.id_motor
                 WHERE m.codigo_qr = %s OR m.nro_serie_bloque = %s
             """, (codigo_qr.strip(), codigo_qr.strip()))
-            motor = cur.fetchone()
+            row = cur.fetchone()
             cur.close()
-            if motor:
-                flash(f"Motor encontrado: {motor[1]} {motor[2]} de {motor[4]} {motor[5]}.")
+            if row:
+                return redirect(url_for('escanear_motor', codigo_qr=row[0]))
             else:
                 flash("No se encontró ningún motor con ese QR o Número de Serie.")
         else:
             flash("Debe ingresar un código QR.")
-    return render_template('escanear_operario.html', motor=motor)
+    return render_template('escanear_operario.html')
+
+@app.route('/scan/<string:codigo_qr>', methods=['GET'])
+@require_operario
+def escanear_motor(codigo_qr):
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        SELECT m.id_motor, m.marca, m.modelo, m.codigo_qr, m.nro_serie_bloque, c.nombre, c.apellido, ot.estado_general, ot.fecha_ingreso, ot.origen_repuestos, ot.id_orden
+        FROM Motor m
+        JOIN Cliente c ON m.dni_cliente = c.dni
+        LEFT JOIN OrdenTrabajo ot ON m.id_motor = ot.id_motor
+        WHERE m.codigo_qr = %s
+    """, (codigo_qr,))
+    motor = cur.fetchone()
+    
+    if not motor:
+        cur.close()
+        flash("Motor no encontrado.")
+        return redirect(url_for('escanear_operario'))
+        
+    cur.execute("""
+        SELECT t.descripcion_trabajo, t.estado_tarea, t.fecha_actualizacion, a.nombre_area, o.nombre, o.apellido, t.observaciones
+        FROM Tarea t
+        JOIN Area a ON t.id_area = a.id_area
+        JOIN Operario o ON t.id_operario = o.id_operario
+        WHERE t.id_orden = %s
+        ORDER BY t.fecha_actualizacion DESC
+    """, (motor[10],))
+    tareas = cur.fetchall()
+    cur.close()
+    
+    return render_template('ficha_tecnica_motor.html', motor=motor, tareas=tareas)
+
+@app.route('/api/status/operario')
+@require_operario
+def api_status_operario():
+    cur = mysql.connection.cursor()
+    cur.execute("SELECT COUNT(*) FROM Tarea WHERE id_operario = %s AND estado_tarea = 'PENDIENTE'", (session.get("operario_id"),))
+    new_tasks = cur.fetchone()[0]
+    cur.close()
+    return {"new_tasks": new_tasks}
 
 @app.route('/panel-cliente')
 @require_cliente
@@ -662,14 +778,29 @@ def panel_cliente():
     cur.execute("""
         SELECT m.id_motor, m.marca, m.modelo, m.codigo_qr, 
                ot.id_orden, ot.fecha_ingreso, ot.fecha_entrega_estimada, 
-               ot.monto_total, ot.saldo_pendiente, ot.estado_general
+               ot.monto_total, 
+               (ot.monto_total - COALESCE((SELECT SUM(monto) FROM Pago_Orden WHERE id_orden = ot.id_orden), 0)) AS saldo_pendiente, 
+               ot.estado_general
         FROM Motor m
-        LEFT JOIN OrdenTrabajo ot ON m.id_motor = ot.id_motor
+        LEFT JOIN OrdenTrabajo ot ON m.id_motor = m.id_motor
         WHERE m.dni_cliente = %s
     """, (session.get("cliente_dni"),))
     motores = cur.fetchall()
     cur.close()
     return render_template('panel_cliente.html', motores=motores)
+
+@app.route('/api/pagar/<int:id_orden>', methods=['POST'])
+@require_cliente
+def api_pagar_stub(id_orden):
+    # RF15: Payment Integration Stub
+    logging.info(f"Payment Gateway [STUB] - Generando preferencia de pago para orden {id_orden}")
+    # In a real scenario, this would call MercadoPago API and return an init_point URL
+    # Here we just mock a success URL or response
+    return {"status": "success", "url": "#", "message": "Simulación de pago generada exitosamente."}
+
+def send_whatsapp_alert(phone, message):
+    # RF14: WhatsApp Integration Stub
+    logging.info(f"WhatsApp Alert [STUB] - Sending to {phone}: {message}")
 
 @app.route('/recuperar-contrasena', methods=['GET', 'POST'])
 def recuperar_contrasena():

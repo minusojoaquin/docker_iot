@@ -10,7 +10,7 @@ import secrets
 import random
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, flash, session
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
 from flask_mysqldb import MySQL
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -1144,6 +1144,46 @@ def get_motor_qr(id_motor):
         "qr_tipo_trabajo": row[5] or "Mantenimiento General",
         "qr_fecha": fecha_str
     }
+
+@app.route('/ver_qr/<int:motor_id>', methods=['GET'])
+def ver_qr(motor_id):
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        SELECT m.codigo_qr, c.nombre, c.apellido, m.marca, m.modelo, ot.tipo_trabajo, m.nro_serie_bloque
+        FROM Motor m
+        JOIN Cliente c ON m.dni_cliente = c.dni
+        LEFT JOIN OrdenTrabajo ot ON m.id_motor = ot.id_motor
+        WHERE m.id_motor = %s
+    """, (motor_id,))
+    row = cur.fetchone()
+    cur.close()
+
+    if not row:
+        return "QR no encontrado", 404
+
+    qr_payload = (
+        f"TIPO: {row[3].strip()} {row[4].strip()}\n"
+        f"MARCA: {row[3].strip()}\n"
+        f"TRABAJO: {(row[5] or 'Mantenimiento General').strip()}\n"
+        f"SERIE: {row[6].strip()}\n"
+        f"CLIENTE: {row[1]} {row[2]}\n"
+        f"ID: {row[0]}"
+    )
+
+    qr = qrcode.QRCode(
+        version=None,
+        error_correction=qrcode.constants.ERROR_CORRECT_M,
+        box_size=10,
+        border=4
+    )
+    qr.add_data(qr_payload)
+    qr.make(fit=True)
+    img = qr.make_image(fill_color="black", back_color="white")
+
+    buf = io.BytesIO()
+    img.save(buf, format="PNG")
+    buf.seek(0)
+    return send_file(buf, mimetype='image/png')
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5000, debug=True)

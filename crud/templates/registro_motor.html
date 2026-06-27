@@ -26,7 +26,10 @@
                         <small class="text-secondary d-block">Tipo de trabajo: {{ motor[4] or 'Mantenimiento General' }}</small>
                         <small class="text-muted" style="font-size: 0.75rem;">Serie: {{ motor[3] }}</small>
                     </div>
-                    <div class="text-orange fs-4">
+                    <div class="text-orange fs-4 d-flex align-items-center">
+                        <a href="{{ url_for('ver_qr', motor_id=motor[0]) }}" target="_blank" class="me-3">
+                            <i class="bi bi-qr-code fs-4 text-dark"></i>
+                        </a>
                         <i class="bi bi-check-circle-fill"></i>
                     </div>
                 </div>

@@ -534,21 +534,35 @@ def registro_motor():
         else:
             try:
                 timestamp_str = datetime.now().strftime("%Y%m%d%H%M%S")
+                # codigo_qr_text is the compact DB identifier (used for scan lookups)
                 codigo_qr_text = f"RT-{dni}-{nro_serie_bloque.strip()}-{timestamp_str}"
-                
+
+                # ─── QR Payload Refactor ────────────────────────────────────────────
+                # The QR image encodes a structured human-readable text payload.
+                # The DB column (codigo_qr) retains the compact RT-… token so that
+                # all existing scan / lookup routes remain fully compatible.
+                qr_payload = (
+                    f"TIPO: {marca.strip()} {modelo.strip()}\n"
+                    f"MARCA: {marca.strip()}\n"
+                    f"TRABAJO: {tipo_trabajo.strip()}\n"
+                    f"SERIE: {nro_serie_bloque.strip()}\n"
+                    f"CLIENTE: {cliente[1]} {cliente[2]}\n"
+                    f"ID: {codigo_qr_text}"
+                )
+
                 cur.execute("""
                     INSERT INTO Motor (marca, modelo, nro_serie_bloque, dni_cliente, codigo_qr)
                     VALUES (%s, %s, %s, %s, %s)
                 """, (marca.strip(), modelo.strip(), nro_serie_bloque.strip(), dni, codigo_qr_text))
                 id_motor = cur.lastrowid
                 active_motor_id = id_motor
-                
+
                 cur.execute("""
                     INSERT INTO OrdenTrabajo (fecha_ingreso, fecha_entrega_estimada, monto_total, saldo_pendiente, estado_general, origen_repuestos, id_motor)
                     VALUES (%s, %s, %s, %s, 'CREADO', %s, %s)
                 """, (datetime.now(), fecha_entrega_estimada, monto_total, monto_total, origen_repuestos, id_motor))
                 id_orden = cur.lastrowid
-                
+
                 cur.execute("SELECT id_operario FROM Operario LIMIT 1")
                 op_row = cur.fetchone()
                 cur.execute("SELECT id_area FROM Area LIMIT 1")
@@ -558,48 +572,86 @@ def registro_motor():
                         INSERT INTO Tarea (descripcion_trabajo, estado_tarea, fecha_actualizacion, id_orden, id_operario, id_area)
                         VALUES (%s, 'PENDIENTE', %s, %s, %s, %s)
                     """, (tipo_trabajo.strip(), datetime.now(), id_orden, op_row[0], area_row[0]))
-                
+
+                # ─── Global Notification: New Motor Intake ──────────────────────────
+                cur.execute("""
+                    INSERT INTO Notificaciones (mensaje, tipo, id_orden)
+                    VALUES (%s, 'INFO', %s)
+                """, (
+                    f"Nuevo motor ingresado: {marca.strip()} {modelo.strip()} (Serie: {nro_serie_bloque.strip()}) "
+                    f"para el cliente {cliente[1]} {cliente[2]}.",
+                    id_orden
+                ))
+
                 mysql.connection.commit()
-                
-                qr = qrcode.QRCode(version=1, box_size=10, border=4)
-                qr.add_data(codigo_qr_text)
+                logging.info(
+                    f"Motor registrado - ID: {id_motor} | QR: {codigo_qr_text} | "
+                    f"Cliente DNI: {dni} | Orden: {id_orden}"
+                )
+
+                # ─── QR Image Generation ────────────────────────────────────────────
+                qr = qrcode.QRCode(
+                    version=None,   # auto-size based on payload length
+                    error_correction=qrcode.constants.ERROR_CORRECT_M,
+                    box_size=10,
+                    border=4
+                )
+                qr.add_data(qr_payload)
                 qr.make(fit=True)
                 img = qr.make_image(fill_color="black", back_color="white")
-                
+
                 buf = io.BytesIO()
                 img.save(buf, format="PNG")
                 qr_bytes = buf.getvalue()
                 qr_code_base64 = base64.b64encode(qr_bytes).decode('utf-8')
-                
+
                 qr_cliente_nombre = f"{cliente[1]} {cliente[2]}"
                 qr_motor_marca_modelo = f"{marca.strip()} {modelo.strip()}"
                 qr_tipo_trabajo = tipo_trabajo.strip()
                 qr_fecha = datetime.now().strftime('%d/%m/%Y %H:%M')
                 
-                # SMTP Dispatch logic
+                # ─── Client Account Provisioning & SMTP Dispatch ───────────────────────
                 client_email = cliente[3]
-                client_login = cliente[4]
-                client_password = str(cliente[0]) # DNI is the password
-                
+                existing_login = cliente[4]  # None or already set
+                client_dni = str(cliente[0]).strip()
+                apellido = cliente[2].strip().lower()
+
+                raw_password = client_dni                          # DNI is the credential
+                base_username = apellido
+                final_username = existing_login                    # default: already provisioned
+
+                # Provision credentials on first motor registration only
+                if not existing_login:
+                    final_username = f"{base_username}_{raw_password[-3:]}"
+                    hashed_password = generate_password_hash(raw_password, method='scrypt', salt_length=16)
+                    cur.execute(
+                        "UPDATE Cliente SET login = %s, password = %s WHERE dni = %s",
+                        (final_username, hashed_password, client_dni)
+                    )
+                    mysql.connection.commit()
+                    logging.info(f"Credenciales de cliente provisionadas: {final_username}")
+
                 if client_email:
                     try:
                         remitente = os.environ.get("MAIL_USERNAME", "")
-                        password = os.environ.get("MAIL_PASSWORD", "")
+                        password  = os.environ.get("MAIL_PASSWORD", "")
 
-                        email_body = (
-                            f"Hola {cliente[1]} {cliente[2]},\n\n"
-                            f"Su motor {marca.strip()} {modelo.strip()} ha sido registrado exitosamente en RectiTrack.\n"
-                            f"El número de orden es: {id_orden}.\n\n"
-                            f"Puede realizar el seguimiento en tiempo real y consultar saldos ingresando al portal con sus credenciales:\n"
-                            f"Usuario: {client_login}\n"
-                            f"Contraseña: {client_password}\n\n"
-                            f"Gracias por confiar en nuestros servicios.\nEquipo RectiTrack"
-                        )
-
-                        msg = MIMEText(email_body)
-                        msg['Subject'] = 'RectiTrack - Motor Registrado y Credenciales'
-                        msg['From'] = remitente
-                        msg['To'] = client_email
+                        html_body = f"""
+<div style="font-family: Arial, sans-serif; color: #1A365D;">
+    <h3>Bienvenido a RectiTrack</h3>
+    <p>Su motor ha sido registrado exitosamente. Puede monitorear el progreso en tiempo real accediendo a nuestro portal web.</p>
+    <div style="background-color: #f8f9fa; padding: 15px; border-left: 4px solid #FF6B00; margin: 20px 0;">
+        <p><strong>Usuario:</strong> {final_username}</p>
+        <p><strong>Contraseña:</strong> {raw_password}</p>
+    </div>
+    <p><small>Por razones de seguridad, le recomendamos cambiar esta contraseña al iniciar sesión por primera vez.</small></p>
+</div>
+"""
+                        msg = MIMEMultipart()
+                        msg['Subject'] = 'RectiTrack - Credenciales de Acceso'
+                        msg['From']    = remitente
+                        msg['To']      = client_email
+                        msg.attach(MIMEText(html_body, 'html'))
 
                         server = smtplib.SMTP('smtp.gmail.com', 587, timeout=10)
                         server.ehlo()
@@ -608,15 +660,16 @@ def registro_motor():
                         server.login(remitente, password)
                         server.send_message(msg)
                         server.quit()
-                        logging.info(f"Email de registro de motor enviado con éxito a {client_email}")
+                        logging.info(f"Email de credenciales enviado con éxito a {client_email}")
                         flash("Motor registrado y credenciales enviadas al cliente.", "success")
                     except Exception as smtp_err:
                         import traceback
                         traceback.print_exc()
-                        logging.error(f"Error al enviar email de registro de motor: {smtp_err}")
+                        logging.error(f"Error al enviar email de credenciales: {smtp_err}")
                         flash("Motor registrado, pero falló el envío del correo al cliente.", "warning")
                 else:
                     flash("Motor registrado con éxito y QR generado. (El cliente no tiene email asociado)", "success")
+
                     
             except Exception as e:
                 mysql.connection.rollback()
@@ -821,59 +874,7 @@ def tareas_operario():
 def detalle_tarea_operario(id_tarea):
     cur = mysql.connection.cursor()
     
-    if request.method == 'POST':
-        nuevo_estado = request.form.get('estado')
-        observaciones = request.form.get('observaciones', '')
-        is_final_task = request.form.get('is_final_task') == 'true'
-        if nuevo_estado in ['PENDIENTE', 'EN_PROCESO', 'HECHO', 'FINALIZADA', 'PAUSADA']:
-            try:
-                cur.execute("""
-                    UPDATE Tarea 
-                    SET estado_tarea = %s, fecha_actualizacion = %s, observaciones = %s
-                    WHERE id_tarea = %s AND id_operario = %s
-                """, (nuevo_estado, datetime.now(), observaciones, id_tarea, session.get("operario_id")))
-                
-                cur.execute("SELECT id_orden FROM Tarea WHERE id_tarea = %s", (id_tarea,))
-                order_row = cur.fetchone()
-                if order_row:
-                    id_orden = order_row[0]
-                    ot_estado = 'EN_PROCESO' if nuevo_estado in ['EN_PROCESO', 'PAUSADA'] else ('HECHO' if nuevo_estado in ['HECHO', 'FINALIZADA'] else 'CREADO')
-                    
-                    if nuevo_estado in ['HECHO', 'FINALIZADA']:
-                        cur.execute("UPDATE OrdenTrabajo SET estado_general = %s, fecha_terminado = NOW() WHERE id_orden = %s", (ot_estado, id_orden))
-                        
-                        # Trigger RF14: WhatsApp Alert
-                        cur.execute("""
-                            SELECT c.telefono, c.nombre, m.marca, m.modelo 
-                            FROM Cliente c 
-                            JOIN Motor m ON c.dni = m.dni_cliente 
-                            WHERE m.id_motor = %s
-                        """, (tarea[11],))
-                        client_data = cur.fetchone()
-                        if client_data:
-                            msg = f"Hola {client_data[1]}, el trabajo en su motor {client_data[2]} {client_data[3]} ha sido finalizado. Puede pasar a retirarlo."
-                            send_whatsapp_alert(client_data[0], msg)
-                    else:
-                        cur.execute("UPDATE OrdenTrabajo SET estado_general = %s WHERE id_orden = %s", (ot_estado, id_orden))
-                    
-                    if nuevo_estado == 'PAUSADA':
-                        cur.execute("""
-                            INSERT INTO Notificaciones (mensaje, tipo, id_orden, id_tarea) 
-                            VALUES (%s, 'ALERTA', %s, %s)
-                        """, (f"Tarea {id_tarea} pausada por operario. Obs: {observaciones}", id_orden, id_tarea))
-                
-                if is_final_task and nuevo_estado in ['HECHO', 'FINALIZADA']:
-                    cur.execute("UPDATE Motor SET estado = 'TERMINADO' WHERE id_motor = (SELECT id_motor FROM OrdenTrabajo WHERE id_orden = %s)", (id_orden,))
-                
-                mysql.connection.commit()
-                flash("Estado de la tarea y observaciones actualizados.")
-            except Exception as e:
-                mysql.connection.rollback()
-                logging.error(f"Error updating task state: {e}")
-                flash("Error al actualizar el estado de la tarea.")
-        else:
-            flash("Estado no válido.")
-            
+    # ─── Fetch tarea FIRST so it is available inside the POST block ────────────
     cur.execute("""
         SELECT t.id_tarea, t.descripcion_trabajo, t.estado_tarea, t.fecha_actualizacion,
                ot.id_orden, m.marca, m.modelo, m.codigo_qr, a.nombre_area,
@@ -886,12 +887,106 @@ def detalle_tarea_operario(id_tarea):
         WHERE t.id_tarea = %s AND t.id_operario = %s
     """, (id_tarea, session.get("operario_id")))
     tarea = cur.fetchone()
-    cur.close()
-    
+
     if not tarea:
+        cur.close()
         flash("Tarea no encontrada.")
         return redirect(url_for('tareas_operario'))
-        
+
+    if request.method == 'POST':
+        nuevo_estado = request.form.get('estado')
+        observaciones = request.form.get('observaciones', '')
+        is_final_task = request.form.get('is_final_task') == 'true'
+
+        # ─── Server-side state validation ───────────────────────────────────────
+        estados_validos = ['PENDIENTE', 'EN_PROCESO', 'HECHO', 'FINALIZADA', 'PAUSADA']
+        if not nuevo_estado or nuevo_estado not in estados_validos:
+            flash(f"Estado '{nuevo_estado}' no es válido. Use: {', '.join(estados_validos)}.", "danger")
+        elif not observaciones.strip() and nuevo_estado == 'PAUSADA':
+            flash("Debe ingresar observaciones al pausar una tarea.", "warning")
+        else:
+            try:
+                cur.execute("""
+                    UPDATE Tarea 
+                    SET estado_tarea = %s, fecha_actualizacion = %s, observaciones = %s
+                    WHERE id_tarea = %s AND id_operario = %s
+                """, (nuevo_estado, datetime.now(), observaciones, id_tarea, session.get("operario_id")))
+
+                id_orden = tarea[4]  # already fetched above
+                ot_estado = (
+                    'EN_PROCESO' if nuevo_estado in ['EN_PROCESO', 'PAUSADA']
+                    else ('HECHO' if nuevo_estado in ['HECHO', 'FINALIZADA'] else 'CREADO')
+                )
+
+                if nuevo_estado in ['HECHO', 'FINALIZADA']:
+                    cur.execute(
+                        "UPDATE OrdenTrabajo SET estado_general = %s, fecha_terminado = NOW() WHERE id_orden = %s",
+                        (ot_estado, id_orden)
+                    )
+                    # ─── Global Notification: Work Completed ────────────────────
+                    cur.execute("""
+                        INSERT INTO Notificaciones (mensaje, tipo, id_orden, id_tarea)
+                        VALUES (%s, 'INFO', %s, %s)
+                    """, (
+                        f"Trabajo FINALIZADO en motor {tarea[5]} {tarea[6]} "
+                        f"(Orden #{id_orden}). Obs: {observaciones or 'Sin observaciones'}.",
+                        id_orden, id_tarea
+                    ))
+                    # ─── RF14: WhatsApp Alert ───────────────────────────────────
+                    cur.execute("""
+                        SELECT c.telefono, c.nombre, m.marca, m.modelo 
+                        FROM Cliente c 
+                        JOIN Motor m ON c.dni = m.dni_cliente 
+                        WHERE m.id_motor = %s
+                    """, (tarea[11],))
+                    client_data = cur.fetchone()
+                    if client_data:
+                        msg = (
+                            f"Hola {client_data[1]}, el trabajo en su motor "
+                            f"{client_data[2]} {client_data[3]} ha sido finalizado. "
+                            f"Puede pasar a retirarlo."
+                        )
+                        send_whatsapp_alert(client_data[0], msg)
+                else:
+                    cur.execute(
+                        "UPDATE OrdenTrabajo SET estado_general = %s WHERE id_orden = %s",
+                        (ot_estado, id_orden)
+                    )
+
+                if nuevo_estado == 'PAUSADA':
+                    cur.execute("""
+                        INSERT INTO Notificaciones (mensaje, tipo, id_orden, id_tarea) 
+                        VALUES (%s, 'ALERTA', %s, %s)
+                    """, (f"Tarea {id_tarea} PAUSADA por operario. Obs: {observaciones}", id_orden, id_tarea))
+
+                if is_final_task and nuevo_estado in ['HECHO', 'FINALIZADA']:
+                    cur.execute(
+                        "UPDATE Motor SET estado = 'TERMINADO' WHERE id_motor = "
+                        "(SELECT id_motor FROM OrdenTrabajo WHERE id_orden = %s)",
+                        (id_orden,)
+                    )
+
+                mysql.connection.commit()
+                # Re-fetch tarea so template shows updated values
+                cur.execute("""
+                    SELECT t.id_tarea, t.descripcion_trabajo, t.estado_tarea, t.fecha_actualizacion,
+                           ot.id_orden, m.marca, m.modelo, m.codigo_qr, a.nombre_area,
+                           c.nombre, c.apellido, m.id_motor, t.observaciones
+                    FROM Tarea t
+                    JOIN OrdenTrabajo ot ON t.id_orden = ot.id_orden
+                    JOIN Motor m ON ot.id_motor = m.id_motor
+                    JOIN Area a ON t.id_area = a.id_area
+                    JOIN Cliente c ON m.dni_cliente = c.dni
+                    WHERE t.id_tarea = %s AND t.id_operario = %s
+                """, (id_tarea, session.get("operario_id")))
+                tarea = cur.fetchone()
+                flash("Estado de la tarea y observaciones actualizados.", "success")
+            except Exception as e:
+                mysql.connection.rollback()
+                logging.error(f"Error updating task state: {e}")
+                flash("Error al actualizar el estado de la tarea.", "danger")
+            
+    cur.close()
     return render_template('detalle_tarea_operario.html', tarea=tarea)
 
 @app.route('/panel-operario/escanear', methods=['GET', 'POST'])

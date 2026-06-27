@@ -22,6 +22,7 @@ Sistema de software web diseñado para la gestión operativa y digitalización c
 * **Operario:** Ejecutor técnico de tareas.
 * **Tarea:** Registro transaccional inmutable de operaciones, mediciones, observaciones y prioridad.
 * **Notificaciones:** Registro de alertas críticas (pausas por repuestos, inactividad prolongada).
+* **TokenRecuperacion:** Gestión de tokens seguros temporales (30 min) para el restablecimiento de contraseñas de Gerentes.
 
 ## 4. Roles y Casos de Uso del Sistema
 * **Rol Gerente (Administrador):**
@@ -41,6 +42,7 @@ Sistema de software web diseñado para la gestión operativa y digitalización c
 * **Backend (`crud.py` / Flask):** Integración de SQLAlchemy/MySQLdb. Despacho SMTP seguro implementado.
 * **Rutas Críticas Activas:**
   * `/login`: Control de acceso Role-Based (Gerente, Operario, Cliente). UI optimizada (alta legibilidad, sin credenciales expuestas, sin navegación redundante).
+  * `/recuperar-password` y `/reset-password/<token>`: Flujo seguro de recuperación de contraseñas vía email para el rol Gerente.
   * `/panel-gerente`: Interfaz principal 2x2.
   * `/panel-gerente/asignar`: Lógica DML para inyección de tareas.
   * `/panel-gerente/pagos`: Tablero financiero. Recálculo dinámico de `saldo` vía POST modal (`/registrar_anticipo/<id>`).

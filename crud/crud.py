@@ -6,7 +6,8 @@ import qrcode
 import smtplib
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from datetime import datetime
+import secrets
+from datetime import datetime, timedelta
 from functools import wraps
 from flask import Flask, render_template, request, redirect, url_for, flash, session
 from flask_mysqldb import MySQL
@@ -44,6 +45,18 @@ def setup_db():
     if not _db_seeded:
         try:
             cur = mysql.connection.cursor()
+            # 0. Crear tabla TokenRecuperacion si no existe
+            cur.execute("""
+                CREATE TABLE IF NOT EXISTS TokenRecuperacion (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    usuario_id VARCHAR(255) NOT NULL,
+                    token_hash VARCHAR(255) NOT NULL,
+                    fecha_expiracion DATETIME NOT NULL,
+                    usado BOOLEAN DEFAULT 0
+                )
+            """)
+            mysql.connection.commit()
+            
             # 1. Check/Insert Gerente admin
             cur.execute("SELECT usuario FROM Usuarios_Gerencia WHERE usuario = 'admin'")
             if not cur.fetchone():
@@ -221,6 +234,96 @@ def logout():
     logging.info(f"Sesión cerrada - Usuario: {session.get('user_id')}")
     session.clear()
     return redirect(url_for('login'))
+
+# ==========================================
+# RUTAS DE RECUPERACIÓN DE CONTRASEÑA
+# ==========================================
+@app.route("/recuperar-password", methods=["GET", "POST"])
+def recuperar_password():
+    if request.method == "POST":
+        email = request.form.get("email")
+        if not email:
+            flash("Debe proporcionar un email/usuario.", "warning")
+            return redirect(url_for('recuperar_password'))
+            
+        cur = mysql.connection.cursor()
+        cur.execute("SELECT usuario FROM Usuarios_Gerencia WHERE usuario = %s", (email,))
+        row = cur.fetchone()
+        
+        if row:
+            usuario_id = row[0]
+            token = secrets.token_urlsafe(32)
+            fecha_expiracion = datetime.now() + timedelta(minutes=30)
+            
+            cur.execute("""
+                INSERT INTO TokenRecuperacion (usuario_id, token_hash, fecha_expiracion, usado)
+                VALUES (%s, %s, %s, 0)
+            """, (usuario_id, token, fecha_expiracion))
+            mysql.connection.commit()
+            
+            try:
+                smtp_server = os.environ.get("SMTP_SERVER", "localhost")
+                smtp_port = int(os.environ.get("SMTP_PORT", 1025))
+                smtp_user = os.environ.get("SMTP_USER", "")
+                smtp_pass = os.environ.get("SMTP_PASSWORD", "")
+                
+                reset_url = url_for('resetear_password', token=token, _external=True)
+                email_body = f"<h2>Recuperación de Contraseña</h2><p>Haga clic en el siguiente enlace para restablecer su contraseña:</p><p><a href='{reset_url}'>{reset_url}</a></p><p>Este enlace expirará en 30 minutos.</p>"
+                
+                msg = MIMEMultipart()
+                msg['Subject'] = 'RectiTrack - Recuperación de Contraseña'
+                msg['From'] = 'no-reply@rectitrack.com'
+                msg['To'] = email
+                msg.attach(MIMEText(email_body, 'html'))
+                
+                server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+                if smtp_user and smtp_pass:
+                    server.starttls()
+                    server.login(smtp_user, smtp_pass)
+                server.send_message(msg)
+                server.quit()
+                logging.info(f"Email de recuperación enviado con éxito a {email}")
+            except Exception as smtp_err:
+                logging.error(f"Error al enviar email de recuperación: {smtp_err}")
+        
+        cur.close()
+        flash('Si el correo pertenece a un Gerente registrado, se ha enviado un enlace de recuperación.', 'info')
+        return redirect(url_for('login'))
+        
+    return render_template('recuperar_password.html')
+
+@app.route("/reset-password/<token>", methods=["GET", "POST"])
+def resetear_password(token):
+    cur = mysql.connection.cursor()
+    cur.execute("""
+        SELECT id, usuario_id FROM TokenRecuperacion 
+        WHERE token_hash = %s AND usado = 0 AND fecha_expiracion > NOW()
+    """, (token,))
+    row = cur.fetchone()
+    
+    if not row:
+        cur.close()
+        flash("El enlace de recuperación es inválido o ha expirado.", "warning")
+        return redirect(url_for('login'))
+        
+    token_id = row[0]
+    usuario_id = row[1]
+    
+    if request.method == "POST":
+        nueva_password = request.form.get("nueva_password")
+        
+        if nueva_password:
+            passhash = generate_password_hash(nueva_password, method='scrypt', salt_length=16)
+            cur.execute("UPDATE Usuarios_Gerencia SET hash_password = %s WHERE usuario = %s", (passhash, usuario_id))
+            cur.execute("UPDATE TokenRecuperacion SET usado = 1 WHERE id = %s", (token_id,))
+            mysql.connection.commit()
+            cur.close()
+            
+            flash("Su contraseña ha sido actualizada con éxito.", "success")
+            return redirect(url_for('login'))
+            
+    cur.close()
+    return render_template('resetear_password.html', token=token)
 
 # ==========================================
 # RUTAS DE MÓDULOS GERENCIALES

@@ -356,15 +356,15 @@ def registro_cliente():
 def registro_motor():
     dni = request.args.get('dni')
     if not dni:
-        flash("Debe identificar un cliente primero.")
+        flash("Debe identificar un cliente primero.", "warning")
         return redirect(url_for('registro_cliente'))
         
     cur = mysql.connection.cursor()
-    cur.execute("SELECT dni, nombre, apellido FROM Cliente WHERE dni = %s", (dni,))
+    cur.execute("SELECT dni, nombre, apellido, email, login FROM Cliente WHERE dni = %s", (dni,))
     cliente = cur.fetchone()
     if not cliente:
         cur.close()
-        flash("Cliente no encontrado.")
+        flash("Cliente no encontrado.", "danger")
         return redirect(url_for('registro_cliente'))
         
     qr_code_base64 = None
@@ -465,11 +465,53 @@ def registro_motor():
                 qr_tipo_trabajo = tipo_trabajo.strip()
                 qr_fecha = datetime.now().strftime('%d/%m/%Y %H:%M')
                 
-                flash("Motor registrado con éxito y QR generado.")
+                # SMTP Dispatch logic
+                client_email = cliente[3]
+                client_login = cliente[4]
+                client_password = str(cliente[0]) # DNI is the password
+                
+                if client_email:
+                    try:
+                        smtp_server = os.environ.get("SMTP_SERVER", "localhost")
+                        smtp_port = int(os.environ.get("SMTP_PORT", 1025))
+                        smtp_user = os.environ.get("SMTP_USER", "")
+                        smtp_pass = os.environ.get("SMTP_PASSWORD", "")
+                        
+                        email_body = (
+                            f"Hola {cliente[1]} {cliente[2]},\n\n"
+                            f"Su motor {marca.strip()} {modelo.strip()} ha sido registrado exitosamente en RectiTrack.\n"
+                            f"El número de orden es: {id_orden}.\n\n"
+                            f"Puede realizar el seguimiento en tiempo real y consultar saldos ingresando al portal con sus credenciales:\n"
+                            f"Usuario: {client_login}\n"
+                            f"Contraseña: {client_password}\n\n"
+                            f"Gracias por confiar en nuestros servicios.\nEquipo RectiTrack"
+                        )
+                        
+                        msg = MIMEText(email_body)
+                        msg['Subject'] = 'RectiTrack - Motor Registrado y Credenciales'
+                        msg['From'] = 'no-reply@rectitrack.com'
+                        msg['To'] = client_email
+                        
+                        server = smtplib.SMTP(smtp_server, smtp_port, timeout=10)
+                        if smtp_user and smtp_pass:
+                            server.starttls()
+                            server.login(smtp_user, smtp_pass)
+                        server.send_message(msg)
+                        server.quit()
+                        logging.info(f"Email de registro de motor enviado con éxito a {client_email}")
+                        flash("Motor registrado y credenciales enviadas al cliente.", "success")
+                    except Exception as smtp_err:
+                        import traceback
+                        traceback.print_exc()
+                        logging.error(f"Error al enviar email de registro de motor: {smtp_err}")
+                        flash("Motor registrado, pero falló el envío del correo al cliente.", "warning")
+                else:
+                    flash("Motor registrado con éxito y QR generado. (El cliente no tiene email asociado)", "success")
+                    
             except Exception as e:
                 mysql.connection.rollback()
                 logging.error(f"Error registering motor: {e}")
-                flash(f"Error al registrar motor: {e}")
+                flash(f"Error al registrar motor: {e}", "danger")
                 
     cur.execute("""
         SELECT m.id_motor, m.marca, m.modelo, m.nro_serie_bloque, MAX(t.descripcion_trabajo)

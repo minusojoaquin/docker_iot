@@ -60,7 +60,9 @@ Durante este sprint, se implementaron las siguientes características y resoluci
 - **`Notificaciones`**: Nueva tabla para alertas de sistema críticas y pausas de operario (RF03, RF06, RF11).
 
 ### Nuevos Endpoints / Lógica
-- **Gerencia**: Agregado `/api/status/gerente` y notificaciones en dashboard para motores inactivos > 30 días y tareas pausadas (RF03, RF06, RF16). Actualizado cálculo de saldo deudor utilizando `Pago_Orden` (RF07).
+- **Gerencia**: 
+  - Agregado `/api/status/gerente` y notificaciones en dashboard para motores inactivos > 30 días y tareas pausadas (RF03, RF06, RF16). Actualizado cálculo de saldo deudor utilizando `Pago_Orden` (RF07).
+  - Integrado despacho SMTP asíncrono y resiliente en `/panel-gerente/registro-motor` (ejecutado tras COMMIT exitoso) con bloque `try/except` que provee feedback visual (flash alerts) sobre el envío exitoso o fallido del correo con las credenciales y el enlace al portal de seguimiento.
 - **Operario**: Endpoint `/scan/<codigo_qr>` que resuelve la `ficha_tecnica_motor.html` (RF08). Soporte para campo de observaciones en tareas y estado `PAUSADA` que reporta a Gerencia (RF09, RF11). Agregado `/api/status/operario` (RF16).
 - **Cliente**: `panel_cliente.html` reconstruido. Stub para alertas de WhatsApp (`send_whatsapp_alert`) al finalizar orden (RF14). Endpoint de pago stub (`/api/pagar/<id_orden>`) (RF15). Renderización de saldos en tiempo real (RF12, RF13).
 

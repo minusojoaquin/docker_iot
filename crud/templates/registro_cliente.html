@@ -22,7 +22,7 @@
                 <!-- DNI is always required -->
                 <div class="mb-3">
                     <label for="dni" class="form-label">DNI DEL CLIENTE</label>
-                    <input type="number" class="form-control" name="dni" id="dni" placeholder="Ej: 38449122" required min="100000">
+                    <input type="text" class="form-control" name="dni" id="dni" placeholder="Ej: 38449122" required minlength="7" maxlength="8" pattern="\\d+" inputmode="numeric" title="El DNI debe tener 7 u 8 dígitos numéricos.">
                     <div class="invalid-feedback">Por favor, ingrese un DNI válido.</div>
                 </div>
 
@@ -34,22 +34,22 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label for="nombre" class="form-label">NOMBRE</label>
-                            <input type="text" class="form-control" name="nombre" id="nombre" placeholder="Nombre" value="{{ request.form.get('nombre', '') }}">
+                            <input type="text" class="form-control" name="nombre" id="nombre" placeholder="Nombre" value="{{ request.form.get('nombre', '') }}" required pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\\s]+" title="El campo solo acepta letras y espacios.">
                         </div>
                         <div class="col-6">
                             <label for="apellido" class="form-label">APELLIDO</label>
-                            <input type="text" class="form-control" name="apellido" id="apellido" placeholder="Apellido" value="{{ request.form.get('apellido', '') }}">
+                            <input type="text" class="form-control" name="apellido" id="apellido" placeholder="Apellido" value="{{ request.form.get('apellido', '') }}" required pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\\s]+" title="El campo solo acepta letras y espacios.">
                         </div>
                     </div>
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label for="telefono" class="form-label">TELÉFONO</label>
-                            <input type="text" class="form-control" name="telefono" id="telefono" placeholder="+54 9..." value="{{ request.form.get('telefono', '') }}">
+                            <input type="text" class="form-control" name="telefono" id="telefono" placeholder="Ej: 3764123456" value="{{ request.form.get('telefono', '') }}" required pattern="\\d+" inputmode="numeric" title="El campo solo acepta números.">
                         </div>
                         <div class="col-6">
                             <label for="email" class="form-label">EMAIL</label>
-                            <input type="email" class="form-control" name="email" id="email" placeholder="correo@ejemplo.com" value="{{ request.form.get('email', '') }}">
+                            <input type="email" class="form-control" name="email" id="email" placeholder="correo@ejemplo.com" value="{{ request.form.get('email', '') }}" required>
                         </div>
                     </div>
 
@@ -66,6 +66,11 @@
 </div>
 
 <script>
+    // Run on load to ensure proper required attributes state
+    window.addEventListener('DOMContentLoaded', (event) => {
+        switchTab('existente');
+    });
+
     function switchTab(mode) {
         const tabExistente = document.getElementById('tab-existente');
         const tabNuevo = document.getElementById('tab-nuevo');
@@ -73,7 +78,7 @@
         const esNuevoInput = document.getElementById('es_nuevo');
         
         // Form fields
-        const fields = ['nombre', 'apellido', 'telefono'];
+        const fields = ['nombre', 'apellido', 'telefono', 'email'];
 
         if (mode === 'existente') {
             tabExistente.classList.add('active');

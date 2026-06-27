@@ -8,9 +8,10 @@ from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
 import secrets
 import random
+import re
 from datetime import datetime, timedelta
 from functools import wraps
-from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file
+from flask import Flask, render_template, request, redirect, url_for, flash, session, send_file, jsonify
 from flask_mysqldb import MySQL
 from werkzeug.middleware.proxy_fix import ProxyFix
 from werkzeug.security import check_password_hash, generate_password_hash
@@ -364,43 +365,57 @@ def panel_gerente():
 @require_gerente
 def registro_cliente():
     if request.method == 'POST':
-        dni = request.form.get('dni')
+        dni = request.form.get('dni', '').strip()
         es_nuevo = request.form.get('es_nuevo') == 'true'
-        
-        if not dni:
-            flash("El DNI es obligatorio.")
-            return render_template('registro_cliente.html')
-        try:
-            dni_val = int(dni)
-            if dni_val < 100000:
-                flash("El DNI debe tener al menos 6 dígitos.")
-                return render_template('registro_cliente.html')
-        except ValueError:
-            flash("El DNI debe ser numérico.")
-            return render_template('registro_cliente.html')
+
+        # 2. Numeric Check for DNI
+        if not dni.isdigit() or not (7 <= len(dni) <= 8):
+            flash("Error: El DNI debe ser un número válido de 7 u 8 dígitos.", "danger")
+            return redirect(request.url)
 
         cur = mysql.connection.cursor()
         
         if es_nuevo:
-            nombre = request.form.get('nombre')
-            apellido = request.form.get('apellido')
-            telefono = request.form.get('telefono')
-            email = request.form.get('email')
+            nombre = request.form.get('nombre', '').strip()
+            apellido = request.form.get('apellido', '').strip()
+            telefono = request.form.get('telefono', '').strip()
+            email = request.form.get('email', '').strip()
+
+            if not nombre or not apellido or not telefono:
+                flash("Para un nuevo cliente, todos los campos son obligatorios.", "danger")
+                cur.close()
+                return redirect(request.url)
+
+            # 1. Alphabetical Check
+            if not re.match(r"^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$", nombre) or not re.match(r"^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$", apellido):
+                flash("Error: El nombre y apellido deben contener únicamente caracteres alfabéticos.", "danger")
+                cur.close()
+                return redirect(request.url)
+
+            if not telefono.isdigit():
+                flash("Error: El teléfono debe contener únicamente números.", "danger")
+                cur.close()
+                return redirect(request.url)
+
+            # 3. Email Structure Check
+            if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
+                flash("Error: Formato de correo electrónico inválido.", "danger")
+                cur.close()
+                return redirect(request.url)
             
             # Credential Automation: Automatically map form data to generate credentials
-            login_usr = request.form['apellido']
-            password_usr = request.form['dni']
+            login_usr = apellido
+            password_usr = dni
             
-            if not nombre or not apellido or not telefono:
-                flash("Para un nuevo cliente, todos los campos son obligatorios.")
+            cur.execute(
+                "SELECT dni FROM Cliente WHERE dni = %s OR email = %s", 
+                (dni, email)
+            )
+            colision = cur.fetchone()
+            if colision:
+                flash('Error: El DNI o el Correo Electrónico ingresado ya se encuentra registrado en el sistema.', 'danger')
                 cur.close()
-                return render_template('registro_cliente.html')
-            
-            cur.execute("SELECT dni FROM Cliente WHERE dni = %s", (dni,))
-            if cur.fetchone():
-                flash("Ya existe un cliente registrado con ese DNI.")
-                cur.close()
-                return render_template('registro_cliente.html')
+                return redirect(request.url)
                 
             cur.execute("SELECT dni FROM Cliente WHERE login = %s", (login_usr,))
             if cur.fetchone():
@@ -837,14 +852,18 @@ def api_status_gerente():
         "old_engines": old_engines
     }
 
-@app.route('/api/notificaciones/<int:id_notificacion>/marcar-leida', methods=['POST'])
+@app.route('/dismiss-alert/<int:alert_id>', methods=['POST'])
 @require_gerente
-def marcar_notificacion_leida(id_notificacion):
-    cur = mysql.connection.cursor()
-    cur.execute("UPDATE Notificaciones SET leida = TRUE WHERE id_notificacion = %s", (id_notificacion,))
-    mysql.connection.commit()
-    cur.close()
-    return {"status": "ok"}
+def dismiss_alert(alert_id):
+    try:
+        cur = mysql.connection.cursor()
+        cur.execute("UPDATE Notificaciones SET leida = 1 WHERE id_notificacion = %s", (alert_id,))
+        mysql.connection.commit()
+        cur.close()
+        return jsonify({"status": "success"}), 200
+    except Exception as e:
+        mysql.connection.rollback()
+        return jsonify({"error": str(e)}), 500
 
 @app.route('/panel-operario')
 @require_operario
@@ -1149,25 +1168,25 @@ def get_motor_qr(id_motor):
 def ver_qr(motor_id):
     cur = mysql.connection.cursor()
     cur.execute("""
-        SELECT m.codigo_qr, c.nombre, c.apellido, m.marca, m.modelo, ot.tipo_trabajo, m.nro_serie_bloque
+        SELECT m.codigo_qr, c.nombre, c.apellido, m.marca, m.modelo, m.nro_serie_bloque
         FROM Motor m
         JOIN Cliente c ON m.dni_cliente = c.dni
-        LEFT JOIN OrdenTrabajo ot ON m.id_motor = ot.id_motor
         WHERE m.id_motor = %s
     """, (motor_id,))
-    row = cur.fetchone()
+    motor = cur.fetchone()
     cur.close()
 
-    if not row:
-        return "QR no encontrado", 404
+    if not motor:
+        flash("Motor no encontrado.", "danger")
+        return redirect(url_for('panel_gerente'))
 
     qr_payload = (
-        f"TIPO: {row[3].strip()} {row[4].strip()}\n"
-        f"MARCA: {row[3].strip()}\n"
-        f"TRABAJO: {(row[5] or 'Mantenimiento General').strip()}\n"
-        f"SERIE: {row[6].strip()}\n"
-        f"CLIENTE: {row[1]} {row[2]}\n"
-        f"ID: {row[0]}"
+        f"TIPO: {motor[3].strip()} {motor[4].strip()}\n"
+        f"MARCA: {motor[3].strip()}\n"
+        f"TRABAJO: Mantenimiento General\n"
+        f"SERIE: {motor[5].strip()}\n"
+        f"CLIENTE: {motor[1]} {motor[2]}\n"
+        f"ID: {motor[0]}"
     )
 
     qr = qrcode.QRCode(

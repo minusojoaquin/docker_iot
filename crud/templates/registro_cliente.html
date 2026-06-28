@@ -18,41 +18,45 @@
         </div>
 
         <div class="card shadow-sm border-0 p-4 bg-white" style="border-radius: 0.75rem;">
-            <form action="{{ url_for('registro_cliente') }}" method="POST" class="needs-validation" novalidate>
-                <!-- DNI is always required -->
+            <form action="{{ url_for('registro_cliente') }}" method="POST">
+
+                <!-- DNI — shared by both tabs -->
                 <div class="mb-3">
                     <label for="dni" class="form-label">DNI DEL CLIENTE</label>
-                    <input type="text" class="form-control" id="dni" name="dni" pattern="[0-9]{7,8}" minlength="7" maxlength="8" placeholder="Ej: 38449122" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
-                    <div class="invalid-feedback">Por favor, ingrese un DNI válido.</div>
+                    <input type="number" class="form-control" name="dni" id="dni"
+                           placeholder="Ej: 38449122" required>
+                    <div class="form-text">Ingrese el DNI sin espacios ni puntos.</div>
                 </div>
 
-                <!-- Hidden inputs to identify if client is new or existing -->
+                <!-- Hidden flag: new vs existing client -->
                 <input type="hidden" name="es_nuevo" id="es_nuevo" value="false">
 
-                <!-- Conditional New Client Fields -->
+                <!-- New Client Fields (conditionally shown) -->
                 <div id="new-client-container" style="display: none;">
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label for="nombre" class="form-label">NOMBRE</label>
-                            <input type="text" class="form-control" name="nombre" id="nombre" placeholder="Nombre" value="{{ request.form.get('nombre', '') }}" required pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\\s]+" title="El campo solo acepta letras y espacios.">
+                            <input type="text" class="form-control" id="nombre" name="nombre"
+                                   placeholder="Nombre">
                         </div>
                         <div class="col-6">
                             <label for="apellido" class="form-label">APELLIDO</label>
-                            <input type="text" class="form-control" name="apellido" id="apellido" placeholder="Apellido" value="{{ request.form.get('apellido', '') }}" required pattern="[A-Za-zÁÉÍÓÚáéíóúÑñ\\s]+" title="El campo solo acepta letras y espacios.">
+                            <input type="text" class="form-control" id="apellido" name="apellido"
+                                   placeholder="Apellido">
                         </div>
                     </div>
 
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label for="telefono" class="form-label">TELÉFONO</label>
-                            <input type="text" class="form-control" id="telefono" name="telefono" pattern="[\+0-9\s]{8,20}" minlength="8" maxlength="20" placeholder="+54 9..." oninput="this.value = this.value.replace(/[^\+0-9\s]/g, '')" required>
+                            <input type="text" class="form-control" id="telefono" name="telefono"
+                                   placeholder="+54 9 376 4123456">
                         </div>
                         <div class="col-6">
                             <label for="email" class="form-label">EMAIL</label>
-                            <input type="email" class="form-control" name="email" id="email" placeholder="correo@ejemplo.com" value="{{ request.form.get('email', '') }}" required>
+                            <input type="email" class="form-control" id="email" name="email" required>
                         </div>
                     </div>
-
                 </div>
 
                 <div class="d-grid mt-4">
@@ -66,69 +70,36 @@
 </div>
 
 <script>
-    // Run on load to ensure proper required attributes state
-    window.addEventListener('DOMContentLoaded', (event) => {
+    window.addEventListener('DOMContentLoaded', function () {
         switchTab('existente');
     });
 
     function switchTab(mode) {
-        const tabExistente = document.getElementById('tab-existente');
-        const tabNuevo = document.getElementById('tab-nuevo');
-        const newClientContainer = document.getElementById('new-client-container');
-        const esNuevoInput = document.getElementById('es_nuevo');
-        
-        // Form fields
-        const fields = ['nombre', 'apellido', 'telefono', 'email'];
+        var tabExistente       = document.getElementById('tab-existente');
+        var tabNuevo           = document.getElementById('tab-nuevo');
+        var newClientContainer = document.getElementById('new-client-container');
+        var esNuevoInput       = document.getElementById('es_nuevo');
+        var newFields          = ['nombre', 'apellido', 'telefono', 'email'];
 
         if (mode === 'existente') {
             tabExistente.classList.add('active');
             tabNuevo.classList.remove('active');
             newClientContainer.style.display = 'none';
             esNuevoInput.value = 'false';
-            
-            // Remove required attribute from new client fields
-            fields.forEach(fieldId => {
-                document.getElementById(fieldId).removeAttribute('required');
+            newFields.forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.removeAttribute('required');
             });
         } else {
             tabExistente.classList.remove('active');
             tabNuevo.classList.add('active');
             newClientContainer.style.display = 'block';
             esNuevoInput.value = 'true';
-            
-            // Add required attribute to new client fields
-            fields.forEach(fieldId => {
-                document.getElementById(fieldId).setAttribute('required', 'required');
+            newFields.forEach(function (id) {
+                var el = document.getElementById(id);
+                if (el) el.setAttribute('required', 'required');
             });
         }
     }
-
-    // Bootstrap Form Validation Client Side
-    (() => {
-        'use strict'
-        const forms = document.querySelectorAll('.needs-validation')
-        Array.from(forms).forEach(form => {
-            form.addEventListener('submit', event => {
-                // Custom DNI Validation to override conflicting limits
-                const dniInput = form.querySelector('input[name="dni"]');
-                if (dniInput) {
-                    const dniValue = dniInput.value;
-                    if (!/^[0-9]{7,8}$/.test(dniValue)) {
-                        dniInput.setCustomValidity('Inválido');
-                        dniInput.classList.add('is-invalid');
-                    } else {
-                        dniInput.setCustomValidity('');
-                        dniInput.classList.remove('is-invalid');
-                    }
-                }
-
-                if (!form.checkValidity()) {
-                    event.preventDefault()
-                    event.stopPropagation()
-                }
-                form.classList.add('was-validated')
-            }, false)
-        })
-    })()
 </script>
 {% endblock %}

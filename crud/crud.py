@@ -368,81 +368,66 @@ def registro_cliente():
         dni = request.form.get('dni', '').strip()
         es_nuevo = request.form.get('es_nuevo') == 'true'
 
-        # 2. Numeric Check for DNI
+        # DNI must be numeric and 7–8 digits
         if not dni.isdigit() or not (7 <= len(dni) <= 8):
             flash("Error: El DNI debe ser un número válido de 7 u 8 dígitos.", "danger")
             return redirect(request.url)
 
         cur = mysql.connection.cursor()
-        
+
         if es_nuevo:
-            nombre = request.form.get('nombre', '').strip()
+            nombre   = request.form.get('nombre', '').strip()
             apellido = request.form.get('apellido', '').strip()
             telefono = request.form.get('telefono', '').strip()
-            email = request.form.get('email', '').strip()
+            email    = request.form.get('email', '').strip()
 
             if not nombre or not apellido or not telefono:
                 flash("Para un nuevo cliente, todos los campos son obligatorios.", "danger")
                 cur.close()
                 return redirect(request.url)
 
-            # 1. Alphabetical Check
-            if not re.match(r"^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$", nombre) or not re.match(r"^[A-Za-zÁÉÍÓÚáéíóúÑñ\s]+$", apellido):
-                flash("Error: El nombre y apellido deben contener únicamente caracteres alfabéticos.", "danger")
-                cur.close()
-                return redirect(request.url)
-
-            if not re.match(r"^\\+?[0-9\\s]+$", telefono):
-                flash("Error: El teléfono debe contener únicamente números, espacios y un signo + inicial.", "danger")
-                cur.close()
-                return redirect(request.url)
-
-            # 3. Email Structure Check
-            if not re.match(r"[^@]+@[^@]+\.[^@]+", email):
-                flash("Error: Formato de correo electrónico inválido.", "danger")
-                cur.close()
-                return redirect(request.url)
-            
-            # Credential Automation: Automatically map form data to generate credentials
-            login_usr = apellido
+            # Credential Automation
+            login_usr    = apellido
             password_usr = dni
-            
+
             cur.execute(
-                "SELECT dni FROM Cliente WHERE dni = %s OR email = %s", 
+                "SELECT dni FROM Cliente WHERE dni = %s OR email = %s",
                 (dni, email)
             )
-            colision = cur.fetchone()
-            if colision:
+            if cur.fetchone():
                 flash('Error: El DNI o el Correo Electrónico ingresado ya se encuentra registrado en el sistema.', 'danger')
                 cur.close()
                 return redirect(request.url)
-                
+
             cur.execute("SELECT dni FROM Cliente WHERE login = %s", (login_usr,))
             if cur.fetchone():
                 flash("El nombre de usuario para el cliente ya existe.")
                 cur.close()
                 return render_template('registro_cliente.html')
-                
+
             try:
                 passhash = generate_password_hash(password_usr, method='scrypt', salt_length=16)
                 cur.execute("""
                     INSERT INTO Cliente (dni, nombre, apellido, telefono, email, login, password)
                     VALUES (%s, %s, %s, %s, %s, %s, %s)
-                """, (dni, nombre, apellido, telefono, email or None, login_usr, passhash))
+                """, (dni, nombre, apellido, telefono, email, login_usr, passhash))
                 mysql.connection.commit()
-                flash("Cliente registrado exitosamente.")
-                
-                # SMTP Integration: Dispatch email
+                flash("Cliente registrado exitosamente.", "success")
+
+                # SMTP Integration: Dispatch credentials email
                 if email:
                     try:
                         remitente = os.environ.get("MAIL_USERNAME")
-                        password = os.environ.get("MAIL_PASSWORD")
+                        password  = os.environ.get("MAIL_PASSWORD")
 
                         msg = MIMEMultipart()
-                        msg['From'] = remitente
-                        msg['To'] = email
+                        msg['From']    = remitente
+                        msg['To']      = email
                         msg['Subject'] = "Credenciales de Acceso - RectiTrack"
-                        msg.attach(MIMEText(f"Bienvenido a RectiTrack.\n\nSus credenciales de acceso son:\nUsuario: {login_usr}\nContraseña: {password_usr}", 'plain'))
+                        msg.attach(MIMEText(
+                            f"Bienvenido a RectiTrack.\n\nSus credenciales de acceso son:\nUsuario: {login_usr}\nContraseña: {password_usr}",
+                            'plain'
+                        ))
 
                         server = smtplib.SMTP('smtp.gmail.com', 587)
                         server.ehlo()
@@ -470,8 +455,9 @@ def registro_cliente():
                 flash("El cliente con el DNI ingresado no existe. Regístrelo como Nuevo Cliente.")
                 cur.close()
                 return render_template('registro_cliente.html')
-        
+
         cur.close()
+        flash("Cliente validado. Proceda a cargar los datos del motor.", "success")
         return redirect(url_for('registro_motor', dni=dni))
 
     return render_template('registro_cliente.html')

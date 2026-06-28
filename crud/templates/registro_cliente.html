@@ -22,7 +22,7 @@
                 <!-- DNI is always required -->
                 <div class="mb-3">
                     <label for="dni" class="form-label">DNI DEL CLIENTE</label>
-                    <input type="text" class="form-control" name="dni" id="dni" placeholder="Ej: 38449122" required minlength="7" maxlength="8" pattern="\\d+" inputmode="numeric" title="El DNI debe tener 7 u 8 dígitos numéricos.">
+                    <input type="text" class="form-control" name="dni" id="dni" placeholder="Ej: 38449122" required minlength="7" maxlength="8" pattern="[0-9]{7,8}" oninput="this.value = this.value.replace(/[^0-9]/g, '')" inputmode="numeric" title="El DNI debe tener 7 u 8 dígitos numéricos.">
                     <div class="invalid-feedback">Por favor, ingrese un DNI válido.</div>
                 </div>
 
@@ -45,7 +45,7 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label for="telefono" class="form-label">TELÉFONO</label>
-                            <input type="text" class="form-control" name="telefono" id="telefono" placeholder="Ej: 3764123456" value="{{ request.form.get('telefono', '') }}" required pattern="\\d+" inputmode="numeric" title="El campo solo acepta números.">
+                            <input type="text" class="form-control" name="telefono" id="telefono" placeholder="Ej: +54 9 376 4123456" value="{{ request.form.get('telefono', '') }}" required pattern="^\\+?[0-9\\s]+$" oninput="this.value = this.value.replace(/[^\\+0-9\\s]/g, '')" inputmode="tel" title="El teléfono puede contener números, espacios y un signo + inicial.">
                         </div>
                         <div class="col-6">
                             <label for="email" class="form-label">EMAIL</label>

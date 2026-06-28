@@ -392,8 +392,8 @@ def registro_cliente():
                 cur.close()
                 return redirect(request.url)
 
-            if not telefono.isdigit():
-                flash("Error: El teléfono debe contener únicamente números.", "danger")
+            if not re.match(r"^\\+?[0-9\\s]+$", telefono):
+                flash("Error: El teléfono debe contener únicamente números, espacios y un signo + inicial.", "danger")
                 cur.close()
                 return redirect(request.url)
 

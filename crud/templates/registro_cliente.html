@@ -22,7 +22,7 @@
                 <!-- DNI is always required -->
                 <div class="mb-3">
                     <label for="dni" class="form-label">DNI DEL CLIENTE</label>
-                    <input type="text" class="form-control" name="dni" id="dni" placeholder="Ej: 38449122" required minlength="7" maxlength="8" pattern="[0-9]{7,8}" oninput="this.value = this.value.replace(/[^0-9]/g, '')" inputmode="numeric" title="El DNI debe tener 7 u 8 dígitos numéricos.">
+                    <input type="text" class="form-control" id="dni" name="dni" pattern="[0-9]{7,8}" minlength="7" maxlength="8" placeholder="Ej: 38449122" oninput="this.value = this.value.replace(/[^0-9]/g, '')" required>
                     <div class="invalid-feedback">Por favor, ingrese un DNI válido.</div>
                 </div>
 
@@ -45,7 +45,7 @@
                     <div class="row g-2 mb-3">
                         <div class="col-6">
                             <label for="telefono" class="form-label">TELÉFONO</label>
-                            <input type="text" class="form-control" name="telefono" id="telefono" placeholder="Ej: +54 9 376 4123456" value="{{ request.form.get('telefono', '') }}" required pattern="^\\+?[0-9\\s]+$" oninput="this.value = this.value.replace(/[^\\+0-9\\s]/g, '')" inputmode="tel" title="El teléfono puede contener números, espacios y un signo + inicial.">
+                            <input type="text" class="form-control" id="telefono" name="telefono" pattern="[\+0-9\s]{8,20}" minlength="8" maxlength="20" placeholder="+54 9..." oninput="this.value = this.value.replace(/[^\+0-9\s]/g, '')" required>
                         </div>
                         <div class="col-6">
                             <label for="email" class="form-label">EMAIL</label>
@@ -109,6 +109,19 @@
         const forms = document.querySelectorAll('.needs-validation')
         Array.from(forms).forEach(form => {
             form.addEventListener('submit', event => {
+                // Custom DNI Validation to override conflicting limits
+                const dniInput = form.querySelector('input[name="dni"]');
+                if (dniInput) {
+                    const dniValue = dniInput.value;
+                    if (!/^[0-9]{7,8}$/.test(dniValue)) {
+                        dniInput.setCustomValidity('Inválido');
+                        dniInput.classList.add('is-invalid');
+                    } else {
+                        dniInput.setCustomValidity('');
+                        dniInput.classList.remove('is-invalid');
+                    }
+                }
+
                 if (!form.checkValidity()) {
                     event.preventDefault()
                     event.stopPropagation()

@@ -1146,7 +1146,7 @@ def get_motor_qr(id_motor):
         "codigo_qr_text": qr_text,
         "qr_cliente_nombre": f"{row[1]} {row[2]}",
         "qr_motor_marca_modelo": f"{row[3]} {row[4]}",
-        "qr_tipo_trabajo": row[5] or "Mantenimiento General",
+        "qr_tipo_trabajo": row[5] or "No especificado",
         "qr_fecha": fecha_str
     }
 
@@ -1154,10 +1154,13 @@ def get_motor_qr(id_motor):
 def ver_qr(motor_id):
     cur = mysql.connection.cursor()
     cur.execute("""
-        SELECT m.codigo_qr, c.nombre, c.apellido, m.marca, m.modelo, m.nro_serie_bloque
+        SELECT m.codigo_qr, c.nombre, c.apellido, m.marca, m.modelo, m.nro_serie_bloque, ot.tipo_trabajo
         FROM Motor m
         JOIN Cliente c ON m.dni_cliente = c.dni
+        LEFT JOIN OrdenTrabajo ot ON m.id_motor = ot.id_motor
         WHERE m.id_motor = %s
+        ORDER BY ot.fecha_ingreso DESC
+        LIMIT 1
     """, (motor_id,))
     motor = cur.fetchone()
     cur.close()
@@ -1166,11 +1169,19 @@ def ver_qr(motor_id):
         flash("Motor no encontrado.", "danger")
         return redirect(url_for('panel_gerente'))
 
+    # motor[6] = ot.tipo_trabajo — may be None when no OrdenTrabajo row exists (LEFT JOIN)
+    trabajo_real = motor[6] if motor[6] else 'No especificado'
+
+    # Guard every column that can be NULL in the DB against AttributeError on .strip()
+    tipo  = (motor[3] or '').strip()
+    modelo = (motor[4] or '').strip()
+    serie  = (motor[5] or '').strip()
+
     qr_payload = (
-        f"TIPO: {motor[3].strip()} {motor[4].strip()}\n"
-        f"MARCA: {motor[3].strip()}\n"
-        f"TRABAJO: Mantenimiento General\n"
-        f"SERIE: {motor[5].strip()}\n"
+        f"TIPO: {tipo} {modelo}\n"
+        f"MARCA: {tipo}\n"
+        f"TRABAJO: {trabajo_real}\n"
+        f"SERIE: {serie}\n"
         f"CLIENTE: {motor[1]} {motor[2]}\n"
         f"ID: {motor[0]}"
     )
